@@ -117,21 +117,6 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    @Override
-    @Transactional
-    public void updateOverdueTasks(){
-        List<Task> overdueTasks = taskRepository.findByStatus(TaskStatus.IN_PROGRESS).stream()
-                .filter(task -> LocalDate.now().isAfter(task.getDueDate()))
-                .map(task -> {
-                    task.setStatus(TaskStatus.PENDING);
-                    return task;
-                }).toList();
-
-        if (!overdueTasks.isEmpty()) {
-            taskRepository.saveAll(overdueTasks);
-        }
-    }
-
     private void validateDueDateIsNotInThePast(LocalDate dueDate) {
         if(dueDate.isBefore(LocalDate.now())) {
             throw new BusinessRuleViolationException("Due date cannot be before current date");

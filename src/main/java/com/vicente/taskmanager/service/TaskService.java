@@ -13,5 +13,4 @@ public interface TaskService {
     TaskResponseDTO findById(Long id);
     List<TaskResponseDTO> findAll();
     List<TaskResponseDTO> findByStatus(String status);
-    void updateOverdueTasks();
 }

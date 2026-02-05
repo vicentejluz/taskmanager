@@ -1,12 +1,10 @@
 package com.vicente.taskmanager.controller;
 
-import com.vicente.taskmanager.model.domain.TaskStatus;
 import com.vicente.taskmanager.model.dto.TaskRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;
 
 import com.vicente.taskmanager.service.TaskService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -26,8 +24,8 @@ public class TaskController {
 
     @GetMapping
     public ResponseEntity<List<TaskResponseDTO>> findAll() {
-        List<TaskResponseDTO> taskResponseDTOS = taskService.findAll();
-        return ResponseEntity.ok(taskResponseDTOS);
+        List<TaskResponseDTO> taskResponseDTOs = taskService.findAll();
+        return ResponseEntity.ok(taskResponseDTOs);
     }
 
     @GetMapping("/{id}")
