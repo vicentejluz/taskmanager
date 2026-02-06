@@ -3,16 +3,19 @@ package com.vicente.taskmanager.service.impl;
 import com.vicente.taskmanager.mapper.TaskMapper;
 import com.vicente.taskmanager.model.domain.Task;
 import com.vicente.taskmanager.model.domain.TaskStatus;
-import com.vicente.taskmanager.model.dto.TaskRequestDTO;
+import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;
+import com.vicente.taskmanager.model.dto.TaskUpdateRequestDTO;
 import com.vicente.taskmanager.repository.TaskRepository;
 import com.vicente.taskmanager.service.TaskService;
 import com.vicente.taskmanager.service.exception.BusinessRuleViolationException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -28,8 +31,8 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
-    public TaskResponseDTO create(TaskRequestDTO taskRequestDTO) {
-        Task task = TaskMapper.toEntity(taskRequestDTO);
+    public TaskResponseDTO create(TaskCreateRequestDTO taskCreateRequestDTO) {
+        Task task = TaskMapper.toEntity(taskCreateRequestDTO);
 
         task = taskRepository.save(task);
         entityManager.refresh(task);
@@ -39,20 +42,22 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional
-    public TaskResponseDTO update(Long id, TaskRequestDTO taskRequestDTO) {
+    public TaskResponseDTO update(Long id, TaskUpdateRequestDTO taskUpdateRequestDTO) {
         Task task = taskRepository.findById(id).orElseThrow(() ->
                 new EntityNotFoundException("Task not found"));
 
         if(task.getStatus().equals(TaskStatus.CANCELLED) || task.getStatus().equals(TaskStatus.DONE))
             throw new BusinessRuleViolationException("Task with status DONE or CANCELLED cannot be updated");
 
-        if(taskRequestDTO.dueDate() != null)
-            validateDueDateIsNotInThePast(taskRequestDTO.dueDate());
+        validateDueDateIsNotInThePast(taskUpdateRequestDTO.dueDate());
 
-        TaskMapper.merge(task, taskRequestDTO);
+        TaskMapper.merge(task, taskUpdateRequestDTO);
 
-        task = taskRepository.saveAndFlush(task);
-        entityManager.refresh(task);
+        if(task.getDueDate().equals(taskUpdateRequestDTO.dueDate())){
+            task.setStatus(TaskStatus.IN_PROGRESS);
+        }
+
+        saveAndFlushAndRefresh(task);
 
         return TaskMapper.toDTO(task);
     }
@@ -68,7 +73,7 @@ public class TaskServiceImpl implements TaskService {
 
         task.setStatus(TaskStatus.DONE);
 
-        taskRepository.save(task);
+        saveAndFlushAndRefresh(task);
 
         return TaskMapper.toDTO(task);
     }
@@ -84,7 +89,7 @@ public class TaskServiceImpl implements TaskService {
 
         task.setStatus(TaskStatus.CANCELLED);
 
-        taskRepository.save(task);
+        saveAndFlushAndRefresh(task);
 
         return TaskMapper.toDTO(task);
     }
@@ -100,10 +105,10 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<TaskResponseDTO> findAll() {
-        List<Task> tasks = taskRepository.findAll();
+    public Page<TaskResponseDTO> findAll(Pageable pageable) {
+        Page<Task> tasks = taskRepository.findAll(pageable);
 
-        return tasks.stream().map(TaskMapper::toDTO).toList();
+        return tasks.map(TaskMapper::toDTO);
     }
 
     @Override
@@ -118,10 +123,15 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void validateDueDateIsNotInThePast(LocalDate dueDate) {
-        if(dueDate.isBefore(LocalDate.now())) {
-            throw new BusinessRuleViolationException("Due date cannot be before current date");
+        if(dueDate != null) {
+            if (dueDate.isBefore(LocalDate.now())) {
+                throw new BusinessRuleViolationException("Due date cannot be before current date");
+            }
         }
     }
 
-
+    private void saveAndFlushAndRefresh(Task task) {
+        taskRepository.saveAndFlush(task);
+        entityManager.refresh(task);
+    }
 }

@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.model.domain;
 
 public enum TaskStatus {
-    IN_PROGRESS("In Progress"),
     PENDING("Pending"),
+    IN_PROGRESS("In Progress"),
     DONE("Done"),
     CANCELLED("Cancelled");
 

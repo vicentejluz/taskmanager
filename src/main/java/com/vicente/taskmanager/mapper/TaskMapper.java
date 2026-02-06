@@ -1,12 +1,13 @@
 package com.vicente.taskmanager.mapper;
 
 import com.vicente.taskmanager.model.domain.Task;
-import com.vicente.taskmanager.model.dto.TaskRequestDTO;
+import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;
+import com.vicente.taskmanager.model.dto.TaskUpdateRequestDTO;
 
 public final class TaskMapper {
 
-    public static Task toEntity(TaskRequestDTO request) {
+    public static Task toEntity(TaskCreateRequestDTO request) {
         return new Task(request.title(), request.description(), request.dueDate());
     }
 
@@ -22,10 +23,10 @@ public final class TaskMapper {
         );
     }
 
-    public static void merge(Task task, TaskRequestDTO taskRequestDTO) {
-        if(taskRequestDTO.title() != null) task.setTitle(taskRequestDTO.title());
-        if(taskRequestDTO.description() != null) task.setDescription(taskRequestDTO.description());
-        if(taskRequestDTO.dueDate() != null) task.setDueDate(taskRequestDTO.dueDate());
+    public static void merge(Task task, TaskUpdateRequestDTO taskUpdateRequestDTO) {
+        if(taskUpdateRequestDTO.title() != null && !taskUpdateRequestDTO.title().isBlank()) task.setTitle(taskUpdateRequestDTO.title());
+        if(taskUpdateRequestDTO.description() != null) task.setDescription(taskUpdateRequestDTO.description());
+        if(taskUpdateRequestDTO.dueDate() != null) task.setDueDate(taskUpdateRequestDTO.dueDate());
     }
 
 }

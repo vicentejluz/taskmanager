@@ -21,6 +21,12 @@ public class TaskSchedulerServiceImpl implements TaskSchedulerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean hasTasks(){
+        return taskRepository.count() > 0;
+    }
+
+    @Override
     @Transactional
     public void updateOverdueTasks(){
         List<Task> overdueTasks = taskRepository.findByStatus(TaskStatus.IN_PROGRESS).stream()
