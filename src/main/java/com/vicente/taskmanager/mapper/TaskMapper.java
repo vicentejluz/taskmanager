@@ -1,9 +1,11 @@
 package com.vicente.taskmanager.mapper;
 
 import com.vicente.taskmanager.model.domain.Task;
+import com.vicente.taskmanager.model.dto.PageResponseDTO;
 import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;
 import com.vicente.taskmanager.model.dto.TaskUpdateRequestDTO;
+import org.springframework.data.domain.Page;
 
 public final class TaskMapper {
 
@@ -20,6 +22,16 @@ public final class TaskMapper {
                 task.getStatus(),
                 task.getCreatedAt(),
                 task.getUpdatedAt()
+        );
+    }
+
+    public static PageResponseDTO<TaskResponseDTO> toPageDTO(Page<TaskResponseDTO> page) {
+        return new PageResponseDTO<>(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalPages(),
+                page.getTotalElements()
         );
     }
 

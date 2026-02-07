@@ -1,5 +1,7 @@
 package com.vicente.taskmanager.model.domain;
 
+import com.vicente.taskmanager.exception.InvalidTaskStatusException;
+
 public enum TaskStatus {
     PENDING("Pending"),
     IN_PROGRESS("In Progress"),
@@ -16,7 +18,11 @@ public enum TaskStatus {
         return value;
     }
 
-    public static TaskStatus converter(String status) throws IllegalArgumentException {
-        return TaskStatus.valueOf(status.toUpperCase().trim());
+    public static TaskStatus converter(String status) {
+        try {
+            return TaskStatus.valueOf(status.toUpperCase().trim());
+        }catch (IllegalArgumentException e) {
+            throw new InvalidTaskStatusException("Invalid task status: " + status);
+        }
     }
 }

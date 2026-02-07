@@ -16,10 +16,8 @@ public class TaskScheduler {
     @PostConstruct
     @Scheduled(cron = "${spring.task.scheduling.cron}")
     public void execute() {
-        if(taskSchedulerService.hasTasks()) {
-            taskSchedulerService.updateOverdueTasks();
-            taskSchedulerService.deleteCancelledTasksOlderThan90Days();
-            taskSchedulerService.deleteDoneTasksOlderThan180Days();
-        }
+        taskSchedulerService.updateOverdueTasks();
+        taskSchedulerService.deleteCancelledTasksOlderThan90Days();
+        taskSchedulerService.deleteDoneTasksOlderThan180Days();
     }
 }
