@@ -35,13 +35,13 @@ public class SwaggerConfig {
         return new Info()
                 .title("Task Manager")
                 .description(
-                        """
+                                    """
                                     REST API for managing tasks, deadlines and statuses.
                                     Includes scheduling, automatic status updates and JWT authentication.
-                                  """)
+                                    """)
                 .license(license)
                 .contact(contact)
-                .version("0.4");
+                .version("0.5");
     }
 
     private Components createComponents() {

@@ -3,6 +3,9 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+.env
+requests.http
+/logs/
 
 ### STS ###
 .apt_generated
@@ -31,5 +34,3 @@ build/
 
 ### VS Code ###
 .vscode/
-.env
-requests.http

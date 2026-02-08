@@ -36,9 +36,12 @@ public final class TaskMapper {
     }
 
     public static void merge(Task task, TaskUpdateRequestDTO taskUpdateRequestDTO) {
-        if(taskUpdateRequestDTO.title() != null && !taskUpdateRequestDTO.title().isBlank()) task.setTitle(taskUpdateRequestDTO.title());
-        if(taskUpdateRequestDTO.description() != null) task.setDescription(taskUpdateRequestDTO.description());
-        if(taskUpdateRequestDTO.dueDate() != null) task.setDueDate(taskUpdateRequestDTO.dueDate());
+        if(taskUpdateRequestDTO.title() != null && !taskUpdateRequestDTO.title().isBlank())
+            task.setTitle(taskUpdateRequestDTO.title());
+        if(taskUpdateRequestDTO.description() != null)
+            task.setDescription(taskUpdateRequestDTO.description());
+        if(taskUpdateRequestDTO.dueDate() != null)
+            task.setDueDate(taskUpdateRequestDTO.dueDate());
     }
 
 }

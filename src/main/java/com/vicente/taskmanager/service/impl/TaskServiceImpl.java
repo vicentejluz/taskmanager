@@ -12,6 +12,8 @@ import com.vicente.taskmanager.repository.TaskRepository;
 import com.vicente.taskmanager.service.TaskService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ import java.time.LocalDate;
 public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
     private final EntityManager entityManager;
+    private static final Logger logger = LoggerFactory.getLogger(TaskServiceImpl.class);
 
     public TaskServiceImpl(TaskRepository taskRepository,  EntityManager entityManager) {
         this.taskRepository = taskRepository;
@@ -32,10 +35,13 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskResponseDTO create(TaskCreateRequestDTO taskCreateRequestDTO) {
+        logger.info("Starting create task");
         Task task = TaskMapper.toEntity(taskCreateRequestDTO);
 
         task = taskRepository.save(task);
         entityManager.refresh(task);
+
+        logger.info("Task created successfully | taskId={}", task.getId());
 
         return TaskMapper.toDTO(task);
     }
@@ -43,19 +49,28 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskResponseDTO update(Long id, TaskUpdateRequestDTO taskUpdateRequestDTO) {
-        Task task = taskRepository.findById(id).orElseThrow(() ->
-                new EntityNotFoundException("Task not found with id: " + id));
+        logger.info("Starting update task with id {}", id);
 
-        if(task.getStatus().equals(TaskStatus.CANCELLED) || task.getStatus().equals(TaskStatus.DONE))
+        Task task = taskRepository.findById(id).orElseThrow(() ->
+            new EntityNotFoundException("Task not found with id: " + id));
+
+        if(task.getStatus().equals(TaskStatus.CANCELLED) || task.getStatus().equals(TaskStatus.DONE)) {
+            logger.debug("Update not allowed for task id={} with status={}", id, task.getStatus());
             throw new TaskStatusNotAllowedException("Task with status DONE or CANCELLED cannot be updated");
+        }
+
+        TaskStatus previousStatus = task.getStatus();
 
         TaskMapper.merge(task, taskUpdateRequestDTO);
 
-        if(task.getDueDate().equals(taskUpdateRequestDTO.dueDate())){
+        if(task.getDueDate().equals(taskUpdateRequestDTO.dueDate()) && task.getStatus().equals(TaskStatus.PENDING)) {
             task.setStatus(TaskStatus.IN_PROGRESS);
+            logTaskStatusChange(task, previousStatus);
         }
 
         saveAndFlushAndRefresh(task);
+
+        logger.info("Task updated successfully | taskId={}", id);
 
         return TaskMapper.toDTO(task);
     }
@@ -63,15 +78,23 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskResponseDTO done(Long id) {
+        logger.info("Starting done task with id {}", id);
         Task task = taskRepository.findById(id).orElseThrow(() ->
                 new EntityNotFoundException("Task not found with id: " + id));
 
-        if(task.getStatus() != TaskStatus.IN_PROGRESS)
+        if(task.getStatus() != TaskStatus.IN_PROGRESS) {
+            logger.debug("Task status transition not allowed | taskId={} currentStatus={} attemptedStatus=DONE",
+                    task.getId(), task.getStatus());
             throw new TaskStatusNotAllowedException("Only tasks with status IN_PROGRESS can be marked as DONE");
+        }
 
+        TaskStatus previousStatus = task.getStatus();
         task.setStatus(TaskStatus.DONE);
+        logTaskStatusChange(task, previousStatus);
 
         saveAndFlushAndRefresh(task);
+
+        logger.info("Task marked as DONE successfully | taskId={}", task.getId());
 
         return TaskMapper.toDTO(task);
     }
@@ -79,15 +102,24 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional
     public TaskResponseDTO cancel(Long id) {
+        logger.info("Starting cancel task with id {}", id);
+
         Task task = taskRepository.findById(id).orElseThrow(() ->
                 new EntityNotFoundException("Task not found with id: " + id));
 
-        if(task.getStatus() != TaskStatus.IN_PROGRESS && task.getStatus() != TaskStatus.PENDING)
+        if(task.getStatus() != TaskStatus.IN_PROGRESS && task.getStatus() != TaskStatus.PENDING) {
+            logger.debug("Task status transition not allowed | taskId={} currentStatus={} attemptedStatus=Cancelled",
+                    task.getId(), task.getStatus());
             throw new TaskStatusNotAllowedException("Only tasks with status IN_PROGRESS or PENDING can be cancelled");
+        }
 
+        TaskStatus previousStatus = task.getStatus();
         task.setStatus(TaskStatus.CANCELLED);
+        logTaskStatusChange(task, previousStatus);
 
         saveAndFlushAndRefresh(task);
+
+        logger.info("Task CANCELLED successfully | taskId={}", task.getId());
 
         return TaskMapper.toDTO(task);
     }
@@ -95,8 +127,12 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(readOnly = true)
     public TaskResponseDTO findById(Long id){
+        logger.info("Starting find task with id {}", id);
+
         Task task = taskRepository.findById(id).orElseThrow(() ->
                 new EntityNotFoundException("Task not found with id: " + id));
+
+        logger.info("Task found successfully | taskId={}", task.getId());
 
         return TaskMapper.toDTO(task);
     }
@@ -104,20 +140,28 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<TaskResponseDTO> find(String status, LocalDate dueDate, Pageable pageable) {
+        logger.info("Starting find tasks with status {} and dueDate {}", status, dueDate);
 
-            if((status != null && !status.isBlank())  && dueDate != null) {
-                return findByStatusAndDueDate(status, dueDate, pageable);
-            }
+        Page<TaskResponseDTO> tasks;
 
-            if(status != null && !status.isBlank()){
-                return findByStatus(status, pageable);
-            }
+        if((status != null && !status.isBlank())  && dueDate != null) {
+            logger.debug("Find strategy: status + dueDate | status={} dueDate={}", status, dueDate);
+            tasks = findByStatusAndDueDate(status, dueDate, pageable);
+        } else if(status != null && !status.isBlank()) {
+            logger.debug("Find strategy: status | status={}", status);
+            tasks = findByStatus(status, pageable);
+        } else if(dueDate != null) {
+            logger.debug("Find strategy: dueDate | dueDate={}", dueDate);
+            tasks = findByDueDate(dueDate, pageable);
+        } else {
+            logger.debug("Find strategy: all tasks");
+            tasks = findAll(pageable);
+        }
 
-            if(dueDate != null){
-                return findByDueDate(dueDate, pageable);
-            }
+        logger.info("Find tasks success | totalElements={} totalPages={} page={} size={}", tasks.getTotalElements(),
+                tasks.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
 
-            return findAll(pageable);
+        return TaskMapper.toPageDTO(tasks);
     }
 
     private void saveAndFlushAndRefresh(Task task) {
@@ -125,29 +169,26 @@ public class TaskServiceImpl implements TaskService {
         entityManager.refresh(task);
     }
 
-    private PageResponseDTO<TaskResponseDTO>findByStatusAndDueDate(String status, LocalDate dueDate, Pageable pageable){
-        Page<TaskResponseDTO> tasks = taskRepository.findByStatusAndDueDate(
-                TaskStatus.converter(status), dueDate, pageable).map(TaskMapper::toDTO);
-
-        return TaskMapper.toPageDTO(tasks);
+    private Page<TaskResponseDTO> findByStatusAndDueDate(String status, LocalDate dueDate, Pageable pageable){
+         return taskRepository.findByStatusAndDueDate(TaskStatus.converter(status), dueDate, pageable)
+                 .map(TaskMapper::toDTO);
     }
 
-    private PageResponseDTO<TaskResponseDTO>findByStatus(String status, Pageable pageable){
-        Page<TaskResponseDTO> tasks = taskRepository.findByStatus(TaskStatus.converter(status), pageable)
+    private Page<TaskResponseDTO> findByStatus(String status, Pageable pageable){
+        return taskRepository.findByStatus(TaskStatus.converter(status), pageable)
                 .map(TaskMapper::toDTO);
-
-        return TaskMapper.toPageDTO(tasks);
     }
 
-    private PageResponseDTO<TaskResponseDTO>findByDueDate(LocalDate dueDate, Pageable pageable){
-        Page<TaskResponseDTO> tasks = taskRepository.findByDueDate(dueDate, pageable).map(TaskMapper::toDTO);
-
-        return TaskMapper.toPageDTO(tasks);
+    private Page<TaskResponseDTO> findByDueDate(LocalDate dueDate, Pageable pageable){
+        return taskRepository.findByDueDate(dueDate, pageable).map(TaskMapper::toDTO);
     }
 
-    private PageResponseDTO<TaskResponseDTO>findAll(Pageable pageable){
-        Page<TaskResponseDTO> tasks = taskRepository.findAll(pageable).map(TaskMapper::toDTO);
+    private Page<TaskResponseDTO> findAll(Pageable pageable){
+        return taskRepository.findAll(pageable).map(TaskMapper::toDTO);
+    }
 
-        return TaskMapper.toPageDTO(tasks);
+    private void logTaskStatusChange(Task task, TaskStatus previousStatus) {
+        logger.info("Task status changed | taskId={} from={} to={}", task.getId(),
+                previousStatus, task.getStatus());
     }
 }
