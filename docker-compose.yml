@@ -12,7 +12,56 @@ services:
     volumes:
       - pg-data:/var/lib/postgresql/data
 
+  elasticsearch:
+      image: elasticsearch:9.3.0
+      container_name: elasticsearch
+      restart: on-failure
+      environment:
+        discovery.type: single-node
+        xpack.security.enabled: false # Disable security for local development
+        ES_JAVA_OPTS: -Xms512m -Xmx512m
+      ports:
+        - "${EL_PORT}:9200"
+      volumes:
+        - es_data:/usr/share/elasticsearch/data
+      networks:
+        - elk-network
+
+
+  logstash:
+      image: logstash:9.3.0
+      container_name: logstash
+      restart: on-failure
+      platform: linux/amd64
+      depends_on:
+        - elasticsearch
+      environment:
+        LS_JAVA_OPTS: -Xms256m -Xmx256m
+      ports:
+        - "${LS_PORT}:5044"
+      volumes:
+        - ./logstash/pipeline:/usr/share/logstash/pipeline
+      networks:
+        - elk-network
+
+  kibana:
+    image: kibana:9.3.0
+    container_name: kibana
+    restart: on-failure
+    depends_on:
+      - elasticsearch
+    environment:
+      ELASTICSEARCH_HOSTS: elasticsearch:${EL_PORT}
+    ports:
+      - "${KB_PORT}:5601"
+    networks:
+      - elk-network
+
 volumes:
   pg-data:
+  es_data:
+
+networks:
+  elk-network:
 
 

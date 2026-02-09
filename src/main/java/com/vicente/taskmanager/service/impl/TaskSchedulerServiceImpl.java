@@ -4,6 +4,8 @@ import com.vicente.taskmanager.model.domain.Task;
 import com.vicente.taskmanager.model.domain.TaskStatus;
 import com.vicente.taskmanager.repository.TaskRepository;
 import com.vicente.taskmanager.service.TaskSchedulerService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.util.List;
 public class TaskSchedulerServiceImpl implements TaskSchedulerService {
 
     private final TaskRepository taskRepository;
+    private static final Logger logger = LoggerFactory.getLogger(TaskSchedulerServiceImpl.class);
 
     public TaskSchedulerServiceImpl(TaskRepository taskRepository) {
         this.taskRepository = taskRepository;
@@ -32,6 +35,10 @@ public class TaskSchedulerServiceImpl implements TaskSchedulerService {
 
         if (!overdueTasks.isEmpty()) {
             taskRepository.saveAll(overdueTasks);
+            logger.info("[SCHEDULER] Overdue tasks updated | count={}", overdueTasks.size());
+        }
+        else {
+            logger.debug("[SCHEDULER] No overdue tasks found");
         }
     }
 
@@ -54,6 +61,9 @@ public class TaskSchedulerServiceImpl implements TaskSchedulerService {
 
         if (!tasks.isEmpty()) {
             taskRepository.deleteAll(tasks);
+            logger.info("[SCHEDULER] tasks deleted | status={} olderThan={}days count={}", taskStatus, qtdDay, tasks.size());
+        }else{
+            logger.debug("[SCHEDULER] No tasks to delete | status={} olderThan={}days", taskStatus, qtdDay);
         }
     }
 }

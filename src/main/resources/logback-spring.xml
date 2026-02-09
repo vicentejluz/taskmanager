@@ -15,7 +15,7 @@
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
                 <pattern>
-                    %cyan(%d{ISO8601, UTC}) %highlight(%-5level) %green(%logger{36}) - %msg%n
+                    %cyan(%d{ISO8601}) %yellow([%thread]) %highlight(%-5level) %green(%logger{36}) - %msg%n
                 </pattern>
             </encoder>
         </appender>
@@ -35,10 +35,15 @@
             </triggeringPolicy>
 
             <encoder>
-                <pattern>%d{ISO8601} %-5level %logger{36} - %msg%n</pattern>
+                <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
             </encoder>
         </appender>
 
+        <appender name="LOGSTASH"
+                  class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+            <destination>localhost:5044</destination>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        </appender>
 
         <!-- Logs da aplicação -->
         <root level="INFO">
@@ -50,6 +55,34 @@
         <logger name="org.hibernate" level="WARN"/>
         <logger name="com.vicente.taskmanager" level="DEBUG">
             <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
+
+        <!-- Graceful shutdown do Tomcat -->
+        <logger name="org.springframework.boot.tomcat.GracefulShutdown"
+                level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
+        <!-- Graceful shutdown do Tomcat -->
+        <logger name="org.springframework.boot.tomcat.TomcatWebServer"
+                level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
+
+        <!-- Fechamento do EntityManager -->
+        <logger name="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean"
+                level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
+
+        <!-- Shutdown do HikariCP -->
+        <logger name="com.zaxxer.hikari.HikariDataSource"
+                level="INFO">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
         </logger>
 
     </springProfile>
@@ -63,7 +96,7 @@
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder>
                 <pattern>
-                    %d{ISO8601, UTC} %-5level %logger{36} - %msg%n
+                    %cyan(%d{ISO8601}) %yellow([%thread]) %highlight(%-5level) %green(%logger{36}) - %msg%n
                 </pattern>
             </encoder>
         </appender>
@@ -83,14 +116,25 @@
 
             <encoder>
                 <pattern>
-                    %d{ISO8601, UTC} %-5level %logger{36} - %msg%n
+                    %d{ISO8601} [%thread] %-5level %logger{36} - %msg%n
                 </pattern>
             </encoder>
         </appender>
+        <appender name="LOGSTASH"
+                  class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+            <destination>localhost:5044</destination>
+
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="LOGSTASH"/>
+        </root>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
         </root>
 
         <!-- Frameworks mais silenciosos -->

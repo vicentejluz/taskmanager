@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.vicente</groupId>
 	<artifactId>taskmanager</artifactId>
-	<version>0.5</version>
+	<version>0.6</version>
 	<name>Task Manager</name>
 	<description>Academic task management system for studying</description>
 	<url>https://github.com/vicentejluz/taskmanager</url>
@@ -73,6 +73,11 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>9.0</version>
 		</dependency>
 	</dependencies>
 
