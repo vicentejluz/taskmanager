@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.domain;
+package com.vicente.taskmanager.model.entity;
 
 import com.vicente.taskmanager.exception.InvalidTaskStatusException;
 

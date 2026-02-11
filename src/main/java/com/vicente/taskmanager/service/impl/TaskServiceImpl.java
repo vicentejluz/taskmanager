@@ -2,8 +2,8 @@ package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.mapper.TaskMapper;
-import com.vicente.taskmanager.model.domain.Task;
-import com.vicente.taskmanager.model.domain.TaskStatus;
+import com.vicente.taskmanager.model.entity.Task;
+import com.vicente.taskmanager.model.entity.TaskStatus;
 import com.vicente.taskmanager.model.dto.PageResponseDTO;
 import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;

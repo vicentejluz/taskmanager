@@ -1,6 +1,6 @@
 package com.vicente.taskmanager.mapper;
 
-import com.vicente.taskmanager.model.domain.Task;
+import com.vicente.taskmanager.model.entity.Task;
 import com.vicente.taskmanager.model.dto.PageResponseDTO;
 import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
 import com.vicente.taskmanager.model.dto.TaskResponseDTO;

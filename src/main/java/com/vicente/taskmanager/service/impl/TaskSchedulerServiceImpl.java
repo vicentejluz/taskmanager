@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.service.impl;
 
-import com.vicente.taskmanager.model.domain.Task;
-import com.vicente.taskmanager.model.domain.TaskStatus;
+import com.vicente.taskmanager.model.entity.Task;
+import com.vicente.taskmanager.model.entity.TaskStatus;
 import com.vicente.taskmanager.repository.TaskRepository;
 import com.vicente.taskmanager.scheduler.util.TaskSchedulerHelper;
 import com.vicente.taskmanager.service.TaskSchedulerService;

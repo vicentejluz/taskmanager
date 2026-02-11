@@ -1,24 +1,14 @@
-package com.vicente.taskmanager.model.domain;
+package com.vicente.taskmanager.model.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.*;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.Objects;
 
 @Entity
 @Table(name = "tb_task")
-public class Task{
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Version
-    @Column(nullable = false)
-    private Long version;
-
+public class Task extends AbstractEntity {
     @Column(nullable = false, length = 50)
     private String title;
 
@@ -33,11 +23,9 @@ public class Task{
     @Column(nullable = false)
     private TaskStatus status;
 
-    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
-    private OffsetDateTime updatedAt;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     public Task() {
     }
@@ -47,10 +35,6 @@ public class Task{
         this.dueDate = dueDate;
         this.description = description;
         this.status = TaskStatus.IN_PROGRESS;
-    }
-
-    public Long getId() {
-        return id;
     }
 
     public String getTitle() {
@@ -69,18 +53,6 @@ public class Task{
         return status;
     }
 
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public OffsetDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
     public void setTitle(String title) {
         this.title = title;
     }
@@ -97,15 +69,11 @@ public class Task{
         this.status = status;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
-        Task task = (Task) o;
-        return Objects.equals(getId(), task.getId());
+    public User getUser() {
+        return user;
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(getId());
+    public void setUser(User user) {
+        this.user = user;
     }
 }
