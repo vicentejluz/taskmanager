@@ -6,6 +6,7 @@
     <!-- ===================== -->
     <property name="LOG_FILENAME" value="taskmanager"/>
     <property name="LOG_PATH" value="logs"/>
+    <property name ="LOGSTASH_HOST" value="localhost"/>
 
     <!-- ===================== -->
     <!-- DEV PROFILE -->
@@ -41,7 +42,7 @@
 
         <appender name="LOGSTASH"
                   class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-            <destination>localhost:5044</destination>
+            <destination>${LOGSTASH_HOST}:5044</destination>
             <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
         </appender>
 
@@ -122,14 +123,10 @@
         </appender>
         <appender name="LOGSTASH"
                   class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-            <destination>localhost:5044</destination>
+            <destination>${LOGSTASH_HOST:localhost}:5044</destination>
 
             <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
         </appender>
-
-        <root level="INFO">
-            <appender-ref ref="LOGSTASH"/>
-        </root>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>

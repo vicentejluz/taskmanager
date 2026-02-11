@@ -63,7 +63,14 @@ public class TaskServiceImpl implements TaskService {
 
         TaskMapper.merge(task, taskUpdateRequestDTO);
 
-        if(task.getDueDate().equals(taskUpdateRequestDTO.dueDate()) && task.getStatus().equals(TaskStatus.PENDING)) {
+        LocalDate today = LocalDate.now();
+
+        if(task.getDueDate().isBefore(today) && previousStatus.equals(TaskStatus.IN_PROGRESS)) {
+            task.setStatus(TaskStatus.PENDING);
+            logTaskStatusChange(task, previousStatus);
+        }
+        else if(!task.getDueDate().isBefore(today) &&
+                previousStatus.equals(TaskStatus.PENDING)) {
             task.setStatus(TaskStatus.IN_PROGRESS);
             logTaskStatusChange(task, previousStatus);
         }

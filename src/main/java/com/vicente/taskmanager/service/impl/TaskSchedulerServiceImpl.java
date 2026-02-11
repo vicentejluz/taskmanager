@@ -3,67 +3,96 @@ package com.vicente.taskmanager.service.impl;
 import com.vicente.taskmanager.model.domain.Task;
 import com.vicente.taskmanager.model.domain.TaskStatus;
 import com.vicente.taskmanager.repository.TaskRepository;
+import com.vicente.taskmanager.scheduler.util.TaskSchedulerHelper;
 import com.vicente.taskmanager.service.TaskSchedulerService;
+import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class TaskSchedulerServiceImpl implements TaskSchedulerService {
 
     private final TaskRepository taskRepository;
+    private final TaskSchedulerHelper taskSchedulerHelper;
     private static final Logger logger = LoggerFactory.getLogger(TaskSchedulerServiceImpl.class);
 
-    public TaskSchedulerServiceImpl(TaskRepository taskRepository) {
+    public TaskSchedulerServiceImpl(TaskRepository taskRepository, TaskSchedulerHelper taskSchedulerHelper) {
         this.taskRepository = taskRepository;
+        this.taskSchedulerHelper = taskSchedulerHelper;
     }
 
     @Override
-    @Transactional
-    public void updateOverdueTasks(){
-        List<Task> overdueTasks = taskRepository.findByStatus(TaskStatus.IN_PROGRESS).stream()
-                .filter(task -> LocalDate.now().isAfter(task.getDueDate()))
-                .map(task -> {
-                    task.setStatus(TaskStatus.PENDING);
-                    return task;
-                }).toList();
+    @Transactional(readOnly = true)
+    public void updateOverdueTasks(String source){
+        LocalDate today = LocalDate.now();
+        List<Task> overdueTasks = taskRepository.findByStatusAndDueDateBefore(TaskStatus.IN_PROGRESS, today);
 
         if (!overdueTasks.isEmpty()) {
-            taskRepository.saveAll(overdueTasks);
-            logger.info("[SCHEDULER] Overdue tasks updated | count={}", overdueTasks.size());
+            AtomicInteger count = new AtomicInteger();
+            overdueTasks.forEach(task -> {
+                try {
+                    taskSchedulerHelper.saveSingleTask(source, task);
+                    count.incrementAndGet();
+                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
+                    logger.warn("[{}] Task skipped due to optimistic lock - updateOverdueTasks | taskId={}",
+                            source, task.getId());
+                }
+            });
+            if(count.get() > 0) {
+                logger.info("[{}] Overdue tasks updated | count={}", source, count.get());
+                return;
+            }
+            logger.info("[{}] Overdue tasks found but none updated due to concurrency",  source);
         }
         else {
-            logger.debug("[SCHEDULER] No overdue tasks found");
+            logger.debug("[{}] No overdue tasks found", source);
         }
     }
 
     @Override
-    @Transactional
-    public void deleteCancelledTasksOlderThan90Days() {
-        deleteTasksByStatusOlderThan(TaskStatus.CANCELLED, 90);
+    @Transactional(readOnly = true)
+    public void deleteCancelledTasksOlderThan90Days(String source) {
+        deleteTasksByStatusOlderThan(source, TaskStatus.CANCELLED, 90);
     }
 
     @Override
-    @Transactional
-    public void deleteDoneTasksOlderThan180Days() {
-        deleteTasksByStatusOlderThan(TaskStatus.DONE, 180);
+    @Transactional(readOnly = true)
+    public void deleteDoneTasksOlderThan180Days(String source) {
+        deleteTasksByStatusOlderThan(source, TaskStatus.DONE, 180);
     }
 
-    private void deleteTasksByStatusOlderThan(TaskStatus taskStatus, int qtdDay){
-        List<Task> tasks = taskRepository.findByStatus(taskStatus).stream()
-                .filter(task -> task.getUpdatedAt().isBefore(
-                        OffsetDateTime.now().minusDays(qtdDay))).toList();
+
+    private void deleteTasksByStatusOlderThan(String source, TaskStatus taskStatus, int qtdDay){
+        OffsetDateTime thresholdDate = OffsetDateTime.now().minusDays(qtdDay);
+        List<Task> tasks = taskRepository.findByStatusAndUpdatedAtBefore(taskStatus, thresholdDate);
 
         if (!tasks.isEmpty()) {
-            taskRepository.deleteAll(tasks);
-            logger.info("[SCHEDULER] tasks deleted | status={} olderThan={}days count={}", taskStatus, qtdDay, tasks.size());
+            AtomicInteger count = new AtomicInteger();
+            tasks.forEach(task -> {
+                try {
+                    taskSchedulerHelper.deleteSingleTask(source, task);
+                    count.incrementAndGet();
+                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
+                    logger.warn("[{}] Task skipped due to optimistic lock - deleteTasksByStatusOlderThan | taskId={}",
+                            source, task.getId());
+                }
+            });
+            if(count.get() > 0) {
+                logger.info("[{}] tasks deleted | status={} olderThan={}days count={}",
+                        source, taskStatus, qtdDay, count.get());
+                return;
+            }
+            logger.info("[{}] Overdue tasks found but none cancelled due to concurrency",  source);
         }else{
-            logger.debug("[SCHEDULER] No tasks to delete | status={} olderThan={}days", taskStatus, qtdDay);
+            logger.debug("[{}] No tasks to delete | status={} olderThan={}days", source, taskStatus, qtdDay);
         }
     }
 }

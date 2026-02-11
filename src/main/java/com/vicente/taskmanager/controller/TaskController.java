@@ -43,22 +43,21 @@ public class TaskController {
     @Operation(
             summary = "Find tasks",
             description = """
-      Returns paginated tasks.
-      Optional filters:
-      - status: Task status (PENDING, IN_PROGRESS, DONE, CANCELLED)
-      - due-date: Filter tasks by due date
-      """
+                    Returns paginated tasks.
+                    Optional filters:
+                    - status: Task status (PENDING, IN_PROGRESS, DONE, CANCELLED)
+                    - due-date: Filter tasks by due date
+                    """
     )
     @GetMapping
     public ResponseEntity<PageResponseDTO<TaskResponseDTO>> find(
-            @RequestParam(required = false)  String status,
+            @RequestParam(required = false) String status,
             @RequestParam(value = "due-date", required = false) LocalDate dueDate,
-            Pageable pageable)
-    {
+            Pageable pageable) {
         logger.debug("GET /api/v1/tasks find called | filters: status={} dueDate={}",
                 status, dueDate);
         PageResponseDTO<TaskResponseDTO> pageResponseDTO = taskService.find(status, dueDate, pageable);
-        if (pageResponseDTO.content().isEmpty()){
+        if (pageResponseDTO.content().isEmpty()) {
             logger.debug("GET /api/v1/tasks returned empty result | filters: status={} dueDate={}",
                     status, dueDate);
         }
@@ -77,7 +76,10 @@ public class TaskController {
 
     @Operation(summary = "Update a task", description = "Updates an existing task by ID")
     @PatchMapping("/{id}")
-    public ResponseEntity<TaskResponseDTO> update(@PathVariable Long id, @Valid @RequestBody TaskUpdateRequestDTO request) {
+    public ResponseEntity<TaskResponseDTO> update(
+            @PathVariable Long id, @Valid @RequestBody
+            TaskUpdateRequestDTO request
+    ) {
         logger.debug("PATCH /api/v1/tasks/{id} update called | taskId={}", id);
         TaskResponseDTO responseDTO = taskService.update(id, request);
         return ResponseEntity.ok(responseDTO);

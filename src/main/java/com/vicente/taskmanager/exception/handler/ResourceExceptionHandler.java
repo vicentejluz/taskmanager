@@ -4,12 +4,14 @@ import com.vicente.taskmanager.exception.InvalidTaskStatusException;
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.exception.error.StandardError;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -181,6 +183,25 @@ public class ResourceExceptionHandler {
 
         StandardError standardError = new StandardError(Instant.now(),status.value(), error,
                 e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler({ OptimisticLockException.class, ObjectOptimisticLockingFailureException.class })
+    public ResponseEntity<StandardError> optimisticLock(Exception e, HttpServletRequest request) {
+        String error = "Optimistic Lock Error";
+        HttpStatus status = HttpStatus.CONFLICT;
+        String message = "Concurrent update detected. Please reload the resource and retry the operation.";
+
+        logExceptionWarn(error, status, request, message);
+
+        StandardError standardError = new StandardError(
+                Instant.now(),
+                status.value(),
+                error,
+                message,
+                request.getRequestURI()
+        );
+
         return ResponseEntity.status(status).body(standardError);
     }
 
