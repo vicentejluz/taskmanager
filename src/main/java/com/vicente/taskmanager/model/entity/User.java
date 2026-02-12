@@ -3,6 +3,8 @@ package com.vicente.taskmanager.model.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "tb_user")
@@ -16,10 +18,12 @@ public class User extends AbstractEntity {
     @Column(nullable = false, length = 60)
     private String password;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "tb_role", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(value =  EnumType.STRING)
     @JdbcType(value = PostgreSQLEnumJdbcType.class)
-    @Column(name = "user_role", nullable = false)
-    private UserRole role;
+    @Column(name = "role", nullable = false)
+    private Set<UserRole> roles = new HashSet<>();
 
     @Column(name = "is_enabled", nullable = false)
     private boolean isEnabled;
@@ -46,14 +50,6 @@ public class User extends AbstractEntity {
         this.name = name;
     }
 
-    public boolean getAccountNonLocked() {
-        return isAccountNonLocked;
-    }
-
-    public void setAccountNonLocked(boolean accountNonLocked) {
-        isAccountNonLocked = accountNonLocked;
-    }
-
     public String getEmail() {
         return email;
     }
@@ -70,19 +66,27 @@ public class User extends AbstractEntity {
         this.password = password;
     }
 
-    public UserRole getRole() {
-        return role;
+    public Set<UserRole> getRole() {
+        return roles;
     }
 
-    public void setRole(UserRole role) {
-        this.role = role;
+    public void setRole(Set<UserRole> roles) {
+        this.roles = roles;
     }
 
-    public boolean getEnabled() {
+    public boolean isEnabled() {
         return isEnabled;
     }
 
     public void setEnabled(boolean enabled) {
         isEnabled = enabled;
+    }
+
+    public boolean isAccountNonLocked() {
+        return isAccountNonLocked;
+    }
+
+    public void setAccountNonLocked(boolean accountNonLocked) {
+        isAccountNonLocked = accountNonLocked;
     }
 }

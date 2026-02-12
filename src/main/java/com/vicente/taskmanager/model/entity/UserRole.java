@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.model.entity;
 
 public enum UserRole {
-    USER("User"),
-    ADMIN("Admin");
+    USER("ROLE_USER"),
+    ADMIN("ROLE_ADMIN");
 
     private final String value;
 

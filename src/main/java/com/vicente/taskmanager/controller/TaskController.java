@@ -1,10 +1,10 @@
 package com.vicente.taskmanager.controller;
 
-import com.vicente.taskmanager.model.dto.PageResponseDTO;
-import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
-import com.vicente.taskmanager.model.dto.TaskResponseDTO;
+import com.vicente.taskmanager.model.dto.response.PageResponseDTO;
+import com.vicente.taskmanager.model.dto.request.TaskCreateRequestDTO;
+import com.vicente.taskmanager.model.dto.response.TaskResponseDTO;
 
-import com.vicente.taskmanager.model.dto.TaskUpdateRequestDTO;
+import com.vicente.taskmanager.model.dto.request.TaskUpdateRequestDTO;
 import com.vicente.taskmanager.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

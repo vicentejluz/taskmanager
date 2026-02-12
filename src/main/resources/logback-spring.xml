@@ -32,7 +32,7 @@
             </rollingPolicy>
 
             <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
-                <maxFileSize>10MB</maxFileSize>
+                <maxFileSize>1MB</maxFileSize>
             </triggeringPolicy>
 
             <encoder>
@@ -53,7 +53,10 @@
 
         <!-- Reduz barulho do Spring -->
         <logger name="org.springframework" level="INFO"/>
-        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.hibernate" level="WARN">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
         <logger name="com.vicente.taskmanager" level="DEBUG">
             <appender-ref ref="FILE"/>
             <appender-ref ref="LOGSTASH"/>
@@ -65,7 +68,8 @@
             <appender-ref ref="FILE"/>
             <appender-ref ref="LOGSTASH"/>
         </logger>
-        <!-- Graceful shutdown do Tomcat -->
+
+        <!-- Tomcat Web Server -->
         <logger name="org.springframework.boot.tomcat.TomcatWebServer"
                 level="INFO">
             <appender-ref ref="FILE"/>
@@ -123,7 +127,7 @@
         </appender>
         <appender name="LOGSTASH"
                   class="net.logstash.logback.appender.LogstashTcpSocketAppender">
-            <destination>${LOGSTASH_HOST:localhost}:5044</destination>
+            <destination>${LOGSTASH_HOST}:5044</destination>
 
             <encoder class="net.logstash.logback.encoder.LogstashEncoder"/>
         </appender>
@@ -139,5 +143,4 @@
         <logger name="org.hibernate" level="WARN"/>
 
     </springProfile>
-
 </configuration>

@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.dto;
+package com.vicente.taskmanager.model.dto.response;
 
 import com.vicente.taskmanager.model.entity.TaskStatus;
 import io.swagger.v3.oas.annotations.media.Schema;

@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.exception.handler;
 
+import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
 import com.vicente.taskmanager.exception.InvalidTaskStatusException;
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.exception.error.StandardError;
@@ -8,6 +9,7 @@ import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -51,6 +53,19 @@ public class ResourceExceptionHandler {
                 e.getMessage(), request.getRequestURI());
         return ResponseEntity.status(status).body(standardError);
     }
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<StandardError> emailAlreadyExists(EmailAlreadyExistsException e, HttpServletRequest request){
+        String error = "Email Already Exists Error";
+        HttpStatus status = HttpStatus.CONFLICT;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<StandardError> methodArgumentNotValid(MethodArgumentNotValidException e, HttpServletRequest request) {
@@ -202,6 +217,19 @@ public class ResourceExceptionHandler {
                 request.getRequestURI()
         );
 
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<StandardError> dataIntegrityViolation(DataIntegrityViolationException e, HttpServletRequest request){
+        String error = "Data Integrity Violation Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        String message = "Invalid request. Please verify the submitted data.";
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                message, request.getRequestURI());
         return ResponseEntity.status(status).body(standardError);
     }
 

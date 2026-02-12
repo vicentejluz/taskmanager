@@ -1,9 +1,9 @@
 package com.vicente.taskmanager.service;
 
-import com.vicente.taskmanager.model.dto.PageResponseDTO;
-import com.vicente.taskmanager.model.dto.TaskCreateRequestDTO;
-import com.vicente.taskmanager.model.dto.TaskResponseDTO;
-import com.vicente.taskmanager.model.dto.TaskUpdateRequestDTO;
+import com.vicente.taskmanager.model.dto.response.PageResponseDTO;
+import com.vicente.taskmanager.model.dto.request.TaskCreateRequestDTO;
+import com.vicente.taskmanager.model.dto.response.TaskResponseDTO;
+import com.vicente.taskmanager.model.dto.request.TaskUpdateRequestDTO;
 import org.springframework.data.domain.Pageable;
 import java.time.LocalDate;
 
