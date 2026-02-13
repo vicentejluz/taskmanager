@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.mapper;
 
-import com.vicente.taskmanager.model.dto.request.RegisterUserRequestDTO;
-import com.vicente.taskmanager.model.dto.response.RegisterUserResponseDTO;
+import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
+import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.model.entity.User;
 
 public final class UserMapper {

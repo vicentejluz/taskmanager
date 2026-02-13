@@ -1,6 +1,6 @@
-package com.vicente.taskmanager.model.dto.request;
+package com.vicente.taskmanager.dto.request;
 
-import com.vicente.taskmanager.validation.ValidPassword;
+import com.vicente.taskmanager.validation.constraints.ValidPassword;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -24,7 +24,7 @@ public record RegisterUserRequestDTO(
         @Schema(description = """
                 User password.
                 Must contain at least 8 characters, one uppercase letter,
-                one lowercase letter, one number and one special character (@$!%*?&#).
+                one lowercase letter, one number and one special character (@$!%*?&#.).
                 Special characters with accent are not allowed.
                 """,
                 example = "Strong@123")

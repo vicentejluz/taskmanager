@@ -3,12 +3,18 @@ package com.vicente.taskmanager.model.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.jspecify.annotations.NonNull;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "tb_user")
-public class User extends AbstractEntity {
+public class User extends AbstractEntity implements UserDetails {
     @Column(nullable = false, length = 60)
     private String name;
 
@@ -42,6 +48,13 @@ public class User extends AbstractEntity {
         this.isAccountNonLocked = true;
     }
 
+    @Override
+    @NonNull
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return roles.stream().map(role -> new SimpleGrantedAuthority(role.getValue()))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
     public String getName() {
         return name;
     }
@@ -66,14 +79,15 @@ public class User extends AbstractEntity {
         this.password = password;
     }
 
-    public Set<UserRole> getRole() {
+    public Set<UserRole> getRoles() {
         return roles;
     }
 
-    public void setRole(Set<UserRole> roles) {
+    public void setRoles(Set<UserRole> roles) {
         this.roles = roles;
     }
 
+    @Override
     public boolean isEnabled() {
         return isEnabled;
     }
@@ -82,11 +96,28 @@ public class User extends AbstractEntity {
         isEnabled = enabled;
     }
 
+    @Override
     public boolean isAccountNonLocked() {
         return isAccountNonLocked;
     }
 
     public void setAccountNonLocked(boolean accountNonLocked) {
         isAccountNonLocked = accountNonLocked;
+    }
+
+    @Override
+    @NonNull
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
     }
 }

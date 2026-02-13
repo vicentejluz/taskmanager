@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -231,6 +232,19 @@ public class ResourceExceptionHandler {
         StandardError standardError = new StandardError(Instant.now(),status.value(), error,
                 message, request.getRequestURI());
         return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<StandardError> badCredentials(BadCredentialsException e, HttpServletRequest request) {
+        String error = "Bad Credentials Error";
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
+        String message = "Invalid email or password";
+
+        logExceptionWarn(error, status, request, message);
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, message,
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
     }
 
     @ExceptionHandler(Exception.class)

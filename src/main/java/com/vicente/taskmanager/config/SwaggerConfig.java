@@ -1,6 +1,5 @@
 package com.vicente.taskmanager.config;
 
-import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -20,8 +19,7 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI().info(this.apiInfo())
-                .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
-                .components(createComponents());
+                .components(this.createComponents());
     }
 
     private Info apiInfo() {
@@ -51,6 +49,11 @@ public class SwaggerConfig {
     }
 
     private SecurityScheme createSecurityScheme() {
-        return new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme(SCHEME).bearerFormat(BEARER_FORMAT);
+        return new SecurityScheme()
+                .name("Authorization")
+                .description("Enter JWT token without 'Bearer ' prefix")
+                .type(SecurityScheme.Type.HTTP)
+                .scheme(SCHEME)
+                .bearerFormat(BEARER_FORMAT);
     }
 }

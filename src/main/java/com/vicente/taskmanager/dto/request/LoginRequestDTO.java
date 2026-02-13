@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.dto.request;
+package com.vicente.taskmanager.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;

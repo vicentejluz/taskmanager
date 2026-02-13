@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.dto.response;
+package com.vicente.taskmanager.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
@@ -14,6 +14,10 @@ public record PageResponseDTO<T>(
         @Schema(description = "Total number of pages", example = "5")
         int totalPages,
         @Schema(description = "Total number of elements", example = "42")
-        long totalElements
+        long totalElements,
+        @Schema(description = "Indicates whether this is the first page", example = "true")
+        boolean firstPage,
+        @Schema(description = "Indicates whether this is the last page", example = "false")
+        boolean lastPage
 ) {
 }

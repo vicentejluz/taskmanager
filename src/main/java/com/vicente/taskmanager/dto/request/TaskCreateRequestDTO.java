@@ -1,26 +1,26 @@
-package com.vicente.taskmanager.model.dto.request;
+package com.vicente.taskmanager.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 
-@Schema(description = "Task update request representation")
-public record TaskUpdateRequestDTO(
+@Schema(description = "Task create request representation")
+public record TaskCreateRequestDTO(
         @Schema(
                 description = "Title of the task",
                 example = "Study Spring Boot"
         )
-        @Size(min = 1, max = 50) String title,
+        @NotBlank @Size(min = 1, max = 50) String title,
         @Schema(
                 description = "Detailed description of the task",
                 example = "Finish REST API module"
+
         )
         @Size(max = 600) String description,
         @Schema(
                 description = "Task due date",
                 example = "2026-03-10"
         )
-        @FutureOrPresent LocalDate dueDate) {
+        @NotNull @FutureOrPresent LocalDate dueDate) {
 }
