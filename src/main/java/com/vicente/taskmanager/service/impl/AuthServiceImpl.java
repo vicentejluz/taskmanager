@@ -2,12 +2,14 @@ package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
+import com.vicente.taskmanager.dto.response.LoginResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
 import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.model.entity.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
+import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import jakarta.persistence.EntityManager;
 import org.slf4j.Logger;
@@ -23,18 +25,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TokenService tokenService;
     private final EntityManager entityManager;
     private final AuthenticationManager authenticationManager;
     private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     public AuthServiceImpl(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
+            PasswordEncoder passwordEncoder, TokenService tokenService,
             EntityManager entityManager,
             AuthenticationManager authenticationManager
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.tokenService = tokenService;
         this.entityManager = entityManager;
         this.authenticationManager = authenticationManager;
     }
@@ -63,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(readOnly = true)
-    public String login(LoginRequestDTO loginRequestDTO) {
+    public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
@@ -72,11 +76,13 @@ public class AuthServiceImpl implements AuthService {
 
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
+        String token = "";
         if (authentication.getPrincipal() != null) {
             User user = (User) authentication.getPrincipal();
+            token = tokenService.generateToken(user);
             logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
         }
 
-        return "successfully logged in";
+        return new LoginResponseDTO(token);
     }
 }

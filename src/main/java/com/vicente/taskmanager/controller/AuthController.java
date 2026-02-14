@@ -2,6 +2,7 @@ package com.vicente.taskmanager.controller;
 
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
+import com.vicente.taskmanager.dto.response.LoginResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,10 +46,15 @@ public class AuthController {
         return ResponseEntity.created(uri).body(registerUserResponseDTO);
     }
 
+    @Operation(
+            summary = "Authenticate user",
+            description = "Authenticates a user using email and password and returns a JWT token."
+    )
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO)
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO)
     {
-        String success = authService.login(loginRequestDTO);
-        return ResponseEntity.ok(success);
+        logger.debug("POST /api/v1/login login called");
+        LoginResponseDTO token = authService.login(loginRequestDTO);
+        return ResponseEntity.ok(token);
     }
 }
