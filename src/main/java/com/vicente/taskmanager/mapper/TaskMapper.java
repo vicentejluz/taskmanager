@@ -5,12 +5,13 @@ import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
+import com.vicente.taskmanager.model.entity.User;
 import org.springframework.data.domain.Page;
 
 public final class TaskMapper {
 
-    public static Task toEntity(TaskCreateRequestDTO request) {
-        return new Task(request.title(), request.description(), request.dueDate());
+    public static Task toEntity(TaskCreateRequestDTO request, User user) {
+        return new Task(request.title(), request.description(), request.dueDate(), user);
     }
 
     public static TaskResponseDTO toDTO(Task task) {

@@ -21,6 +21,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
@@ -32,7 +34,8 @@ public class AuthServiceImpl implements AuthService {
 
     public AuthServiceImpl(
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder, TokenService tokenService,
+            PasswordEncoder passwordEncoder,
+            TokenService tokenService,
             EntityManager entityManager,
             AuthenticationManager authenticationManager
     ) {
@@ -76,12 +79,9 @@ public class AuthServiceImpl implements AuthService {
 
         Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
-        String token = "";
-        if (authentication.getPrincipal() != null) {
-            User user = (User) authentication.getPrincipal();
-            token = tokenService.generateToken(user);
-            logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
-        }
+        User user = (User) authentication.getPrincipal();
+        String token = tokenService.generateToken(Objects.requireNonNull(user));
+        logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
 
         return new LoginResponseDTO(token);
     }

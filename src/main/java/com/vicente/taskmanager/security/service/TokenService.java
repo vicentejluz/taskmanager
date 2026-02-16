@@ -1,13 +1,10 @@
 package com.vicente.taskmanager.security.service;
 
 import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.entity.UserRole;
-import com.vicente.taskmanager.security.model.JWTUserData;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,56 +12,44 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 public class TokenService {
-    @Value("${jwt_token_secret}")
-    private String secret;
-
-    @Value("${spring.application.name}")
-    private String issuer;
-
-    private SecretKey key;
+    private final String issuer;
+    private final SecretKey key;
 
     private static final Logger logger = LoggerFactory.getLogger(TokenService.class);
 
-    @PostConstruct
-    private void init(){
-        key = Keys.hmacShaKeyFor(this.secret.getBytes(StandardCharsets.UTF_8));
+    public TokenService(@Value("${jwt_token_secret}") String secret, @Value("${spring.application.name}") String issuer) {
+        this.issuer = issuer;
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(User user) {
         return Jwts.builder()
                 .issuer(this.issuer)
                 .claim("userId", user.getId())
-                .claim("roles", user.getRoles().stream().map(UserRole::name).toList())
                 .subject(user.getEmail())
-                .issuedAt(Date.from(Instant.now()))
+                .issuedAt(new Date())
                 .expiration(Date.from(this.expirationDate()))
-                .signWith(key)
+                .signWith(this.key)
                 .compact();
     }
 
-    public Optional<JWTUserData> validateToken(String token) {
+    public String validateToken(String token) {
         try {
-            JwtParser jwtParser = Jwts.parser().requireIssuer(this.issuer).verifyWith(key).build();
+            JwtParser jwtParser = Jwts.parser().requireIssuer(this.issuer).verifyWith(this.key).build();
             Claims payload = jwtParser.parseSignedClaims(token).getPayload();
-
-            Long id = payload.get("userId", Long.class);
-            Collection<?> rawRoles = payload.get("roles", Collection.class);
-            Set<UserRole> roles = rawRoles.stream().map(String.class::cast).map(UserRole::valueOf)
-                    .collect(Collectors.toUnmodifiableSet());
-            String subject = payload.getSubject();
-            return Optional.of(new JWTUserData(id, subject, roles));
+            return payload.getSubject();
         }catch (Exception e){
             logger.error("JWT validation error: {}", e.getMessage());
-            return Optional.empty();
+            return null;
         }
     }
 
     private Instant expirationDate() {
-        return Instant.now().plusSeconds(120);
+        return Instant.now().plus(2, ChronoUnit.MINUTES);
     }
 }

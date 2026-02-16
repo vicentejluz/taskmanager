@@ -5,6 +5,7 @@ import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
+import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.service.TaskService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,8 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -36,9 +39,9 @@ public class TaskController {
 
     @Operation(summary = "Find task by ID", description = "Returns a task by its unique identifier")
     @GetMapping("/{id}")
-    public ResponseEntity<TaskResponseDTO> findById(@PathVariable Long id) {
-        logger.debug("GET /api/v1/tasks/{id} findById called | taskId={}", id);
-        TaskResponseDTO responseDTO = taskService.findById(id);
+    public ResponseEntity<TaskResponseDTO> findById(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        logger.debug("GET /api/v1/tasks/{id} findById called | taskId={} userId={}", id, user.getId());
+        TaskResponseDTO responseDTO = taskService.findById(id, user.getId());
         return ResponseEntity.ok(responseDTO);
     }
 
@@ -55,22 +58,26 @@ public class TaskController {
     public ResponseEntity<PageResponseDTO<TaskResponseDTO>> find(
             @RequestParam(required = false) String status,
             @RequestParam(value = "due-date", required = false) LocalDate dueDate,
-            Pageable pageable) {
-        logger.debug("GET /api/v1/tasks find called | filters: status={} dueDate={}",
-                status, dueDate);
-        PageResponseDTO<TaskResponseDTO> pageResponseDTO = taskService.find(status, dueDate, pageable);
+            @AuthenticationPrincipal User user,
+            @ParameterObject Pageable pageable) {
+        logger.debug("GET /api/v1/tasks find called | userId={} filters: status={} dueDate={}",
+                user.getId(), status, dueDate);
+        PageResponseDTO<TaskResponseDTO> pageResponseDTO = taskService.find(status, dueDate, user.getId(), pageable);
         if (pageResponseDTO.content().isEmpty()) {
-            logger.debug("GET /api/v1/tasks returned empty result | filters: status={} dueDate={}",
-                    status, dueDate);
+            logger.debug("GET /api/v1/tasks returned empty result | userId={} filters: status={} dueDate={}",
+                    user.getId(), status, dueDate);
         }
         return ResponseEntity.ok(pageResponseDTO);
     }
 
     @Operation(summary = "Create a new task", description = "Creates a new task and returns the created resource")
     @PostMapping
-    public ResponseEntity<TaskResponseDTO> create(@Valid @RequestBody TaskCreateRequestDTO request) {
+    public ResponseEntity<TaskResponseDTO> create(
+            @Valid @RequestBody TaskCreateRequestDTO request,
+            @AuthenticationPrincipal User user
+    ) {
         logger.debug("POST /api/v1/tasks create called");
-        TaskResponseDTO responseDTO = taskService.create(request);
+        TaskResponseDTO responseDTO = taskService.create(request, user);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
                 .buildAndExpand(responseDTO.id()).toUri();
         return ResponseEntity.created(uri).body(responseDTO);
@@ -80,26 +87,27 @@ public class TaskController {
     @PatchMapping("/{id}")
     public ResponseEntity<TaskResponseDTO> update(
             @PathVariable Long id, @Valid @RequestBody
-            TaskUpdateRequestDTO request
+            TaskUpdateRequestDTO request,
+            @AuthenticationPrincipal User user
     ) {
-        logger.debug("PATCH /api/v1/tasks/{id} update called | taskId={}", id);
-        TaskResponseDTO responseDTO = taskService.update(id, request);
+        logger.debug("PATCH /api/v1/tasks/{id} update called | taskId={} userId={}", id, user.getId());
+        TaskResponseDTO responseDTO = taskService.update(id, user.getId(), request);
         return ResponseEntity.ok(responseDTO);
     }
 
     @Operation(summary = "Mark task as DONE", description = "Changes task status to DONE if allowed")
     @PatchMapping("/done/{id}")
-    public ResponseEntity<TaskResponseDTO> done(@PathVariable Long id) {
-        logger.debug("PATCH /api/v1/tasks/done/{id} done called | taskId={}", id);
-        TaskResponseDTO responseDTO = taskService.done(id);
+    public ResponseEntity<TaskResponseDTO> done(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        logger.debug("PATCH /api/v1/tasks/done/{id} done called | taskId={} userId={}", id, user.getId());
+        TaskResponseDTO responseDTO = taskService.done(id, user.getId());
         return ResponseEntity.ok(responseDTO);
     }
 
     @Operation(summary = "Cancel a task", description = "Changes task status to CANCELLED if allowed")
     @PatchMapping("/cancel/{id}")
-    public ResponseEntity<TaskResponseDTO> cancel(@PathVariable Long id) {
-        logger.debug("PATCH /api/v1/tasks/cancel/{id} cancelled called | taskId={}", id);
-        TaskResponseDTO responseDTO = taskService.cancel(id);
+    public ResponseEntity<TaskResponseDTO> cancel(@PathVariable Long id, @AuthenticationPrincipal User user) {
+        logger.debug("PATCH /api/v1/tasks/cancel/{id} cancelled called | taskId={} userId={}", id, user.getId());
+        TaskResponseDTO responseDTO = taskService.cancel(id, user.getId());
         return ResponseEntity.ok(responseDTO);
     }
 }

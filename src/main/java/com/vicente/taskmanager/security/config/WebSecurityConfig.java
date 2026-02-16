@@ -23,7 +23,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class WebSecurityConfig {
-
     private final SecurityFilter securityFilter;
     private final AuthEntryPointJwt authEntryPointJwt;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
@@ -32,9 +31,13 @@ public class WebSecurityConfig {
             "/v3/api-docs/**",
             "/swagger-ui.html",
             "/swagger-ui/**",
+            "/"
     };
 
-    public WebSecurityConfig(SecurityFilter securityFilter, AuthEntryPointJwt authEntryPointJwt, CustomAccessDeniedHandler customAccessDeniedHandler) {
+    public WebSecurityConfig(SecurityFilter securityFilter,
+                             AuthEntryPointJwt authEntryPointJwt,
+                             CustomAccessDeniedHandler customAccessDeniedHandler
+    ) {
         this.securityFilter = securityFilter;
         this.authEntryPointJwt = authEntryPointJwt;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
@@ -53,12 +56,12 @@ public class WebSecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize ->
-                        authorize
-                                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        authorize.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                                 .requestMatchers(SWAGGER).permitAll()
-                                // .requestMatchers("/**").access("hasRole('ADMIN') and hasRole('USER')")
-                                .anyRequest().authenticated())
+                                .anyRequest().authenticated()
+                        // .requestMatchers("/**").access("hasRole('ADMIN') and hasRole('USER')")
+                )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

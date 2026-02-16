@@ -30,10 +30,11 @@ public class Task extends AbstractEntity {
     public Task() {
     }
 
-    public Task(String title, String description, LocalDate dueDate) {
+    public Task(String title, String description, LocalDate dueDate, User creator) {
         this.title = title;
         this.dueDate = dueDate;
         this.description = description;
+        this.user = creator;
         this.status = TaskStatus.IN_PROGRESS;
     }
 

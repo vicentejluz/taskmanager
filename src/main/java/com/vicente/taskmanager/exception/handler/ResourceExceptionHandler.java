@@ -2,6 +2,7 @@ package com.vicente.taskmanager.exception.handler;
 
 import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
 import com.vicente.taskmanager.exception.InvalidTaskStatusException;
+import com.vicente.taskmanager.exception.TaskNotFoundException;
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.exception.error.StandardError;
 import jakarta.persistence.EntityNotFoundException;
@@ -31,9 +32,9 @@ public class ResourceExceptionHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ResourceExceptionHandler.class);
 
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<StandardError> entityNotFound(EntityNotFoundException e, HttpServletRequest request) {
-        String error = "Entity Not Found Error";
+    @ExceptionHandler(TaskNotFoundException.class)
+    public ResponseEntity<StandardError> taskNotFound(TaskNotFoundException e, HttpServletRequest request) {
+        String error = "Task Not Found Error";
         HttpStatus status = HttpStatus.NOT_FOUND;
 
         logExceptionWarn(error, status, request, e.getMessage());

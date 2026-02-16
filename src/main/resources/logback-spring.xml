@@ -90,6 +90,10 @@
             <appender-ref ref="LOGSTASH"/>
         </logger>
 
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
     </springProfile>
 
     <!-- ===================== -->
