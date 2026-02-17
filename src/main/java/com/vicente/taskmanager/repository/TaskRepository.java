@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.repository;
 
 import com.vicente.taskmanager.model.entity.Task;
-import com.vicente.taskmanager.model.entity.TaskStatus;
+import com.vicente.taskmanager.model.enums.TaskStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

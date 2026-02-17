@@ -7,7 +7,7 @@ import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
 import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.entity.UserRole;
+import com.vicente.taskmanager.model.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;

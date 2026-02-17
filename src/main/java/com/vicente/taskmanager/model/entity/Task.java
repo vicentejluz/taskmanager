@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.model.entity;
 
+import com.vicente.taskmanager.model.enums.TaskStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.*;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-@Schema(description = "Task update request representation")
+@Schema(name = "TaskUpdateRequest", description = "Task update request representation")
 public record TaskUpdateRequestDTO(
         @Schema(
                 description = "Title of the task",

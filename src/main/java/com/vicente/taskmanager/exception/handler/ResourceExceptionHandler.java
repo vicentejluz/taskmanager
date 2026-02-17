@@ -1,11 +1,7 @@
 package com.vicente.taskmanager.exception.handler;
 
-import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
-import com.vicente.taskmanager.exception.InvalidTaskStatusException;
-import com.vicente.taskmanager.exception.TaskNotFoundException;
-import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
+import com.vicente.taskmanager.exception.*;
 import com.vicente.taskmanager.exception.error.StandardError;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -18,6 +14,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -43,6 +40,31 @@ public class ResourceExceptionHandler {
                 e.getMessage(), request.getRequestURI());
         return ResponseEntity.status(status).body(standardError);
     }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<StandardError> userNotFoundException(UserNotFoundException e, HttpServletRequest request) {
+        String error = "User Not Found Error";
+        HttpStatus status = HttpStatus.NOT_FOUND;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(UserNotAllowedException.class)
+    public ResponseEntity<StandardError> userNotAllowed(UserNotAllowedException e, HttpServletRequest request) {
+        String error = "User Not Allowed Error";
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
 
     @ExceptionHandler(TaskStatusNotAllowedException.class)
     public ResponseEntity<StandardError> taskStatusNotAllowed(TaskStatusNotAllowedException e, HttpServletRequest request) {
@@ -244,6 +266,19 @@ public class ResourceExceptionHandler {
         logExceptionWarn(error, status, request, message);
 
         StandardError err = new StandardError(Instant.now(), status.value(), error, message,
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<StandardError> missingServletRequestParameter(MissingServletRequestParameterException e,
+                                                                        HttpServletRequest request) {
+        String error = "Missing Servlet Request Parameter Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
                 request.getRequestURI());
         return ResponseEntity.status(status).body(err);
     }

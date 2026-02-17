@@ -5,7 +5,7 @@ import jakarta.validation.constraints.*;
 
 import java.time.LocalDate;
 
-@Schema(description = "Task create request representation")
+@Schema(name = "TaskCreateRequest", description = "Task create request representation")
 public record TaskCreateRequestDTO(
         @Schema(
                 description = "Title of the task",

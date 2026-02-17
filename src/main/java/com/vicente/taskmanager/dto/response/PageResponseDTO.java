@@ -3,7 +3,7 @@ package com.vicente.taskmanager.dto.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
-@Schema(description = "Paginated response")
+@Schema(name = "PageResponse",description = "Paginated response")
 public record PageResponseDTO<T>(
         @Schema(description = "List of items in the current page")
         List<T> content,

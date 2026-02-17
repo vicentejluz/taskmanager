@@ -2,7 +2,7 @@ package com.vicente.taskmanager.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@Schema(description = "Response returned after successful authentication")
+@Schema(name = "LoginResponse", description = "Response returned after successful authentication")
 public record LoginResponseDTO(
         @Schema(
                 description = "JWT access token used for authenticated requests",

@@ -3,7 +3,7 @@ package com.vicente.taskmanager.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-@Schema(description = "Request payload for user authentication")
+@Schema(name = "LoginRequest", description = "Request payload for user authentication")
 public record LoginRequestDTO(
 
         @Schema(description = "User's registered email address",

@@ -4,7 +4,7 @@ import com.vicente.taskmanager.exception.TaskNotFoundException;
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.mapper.TaskMapper;
 import com.vicente.taskmanager.model.entity.Task;
-import com.vicente.taskmanager.model.entity.TaskStatus;
+import com.vicente.taskmanager.model.enums.TaskStatus;
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
@@ -17,6 +17,8 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -131,7 +133,7 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Transactional(readOnly = true)
     public TaskResponseDTO findById(Long id, Long userId){
-        logger.info("Starting find task | taskId={} userId={}", id, userId);
+        logger.info("Starting find by id task | taskId={} userId={}", id, userId);
 
         Task task = findByIdAndUserId(id, userId);
 
@@ -144,6 +146,8 @@ public class TaskServiceImpl implements TaskService {
     @Transactional(readOnly = true)
     public PageResponseDTO<TaskResponseDTO> find(String status, LocalDate dueDate, Long userId, Pageable pageable) {
         logger.info("Starting find tasks with status {} and dueDate {}", status, dueDate);
+
+        pageable = sortPageable(pageable);
 
         Page<TaskResponseDTO> tasks;
 
@@ -165,6 +169,14 @@ public class TaskServiceImpl implements TaskService {
                 tasks.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
 
         return TaskMapper.toPageDTO(tasks);
+    }
+
+    private static @NonNull Pageable sortPageable(Pageable pageable) {
+        return (pageable.getSort().isUnsorted()) ? PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by("status").ascending().
+                        and(Sort.by("dueDate").ascending())) : pageable;
     }
 
     private void saveAndFlushAndRefresh(Task task) {

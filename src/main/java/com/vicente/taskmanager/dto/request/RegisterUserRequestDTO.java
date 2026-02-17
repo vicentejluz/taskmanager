@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@Schema(description = "Request payload for registering a new user")
+@Schema(name = "RegisterUserRequest", description = "Request payload for registering a new user")
 public record RegisterUserRequestDTO(
 
         @Schema(description = "User's full name (3 to 60 characters)",

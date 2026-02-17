@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
 
-@Schema(description = "Response returned after successfully registering a user")
+@Schema(name = "RegisterUserResponse", description = "Response returned after successfully registering a user")
 public record RegisterUserResponseDTO(
 
         @Schema(description = "Unique identifier of the user", example = "1")

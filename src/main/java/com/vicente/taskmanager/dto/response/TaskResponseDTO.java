@@ -1,12 +1,12 @@
 package com.vicente.taskmanager.dto.response;
 
-import com.vicente.taskmanager.model.entity.TaskStatus;
+import com.vicente.taskmanager.model.enums.TaskStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-@Schema(description = "Task response representation")
+@Schema(name = "TaskResponse", description = "Task response representation")
 public record TaskResponseDTO(
         @Schema(
                 description = "Unique identifier of the task",

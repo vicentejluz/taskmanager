@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.entity;
+package com.vicente.taskmanager.model.enums;
 
 public enum UserRole {
     USER("ROLE_USER"),

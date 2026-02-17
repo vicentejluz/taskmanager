@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.scheduler.util;
 
 import com.vicente.taskmanager.model.entity.Task;
-import com.vicente.taskmanager.model.entity.TaskStatus;
+import com.vicente.taskmanager.model.enums.TaskStatus;
 import com.vicente.taskmanager.repository.TaskRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
