@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -53,10 +54,22 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).body(standardError);
     }
 
-    @ExceptionHandler(UserNotAllowedException.class)
-    public ResponseEntity<StandardError> userNotAllowed(UserNotAllowedException e, HttpServletRequest request) {
+    @ExceptionHandler(InvalidOldPasswordException.class)
+    public ResponseEntity<StandardError> userNotAllowed(InvalidOldPasswordException e, HttpServletRequest request) {
         String error = "User Not Allowed Error";
-        HttpStatus status = HttpStatus.UNAUTHORIZED;
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(UserOperationNotAllowedException.class)
+    public ResponseEntity<StandardError> userOperationNotAllowed(UserOperationNotAllowedException e, HttpServletRequest request) {
+        String error = "User Operation Not Allowed Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
 
         logExceptionWarn(error, status, request, e.getMessage());
 
@@ -250,7 +263,13 @@ public class ResourceExceptionHandler {
         HttpStatus status = HttpStatus.BAD_REQUEST;
         String message = "Invalid request. Please verify the submitted data.";
 
-        logExceptionWarn(error, status, request, e.getMessage());
+        Throwable root = e;
+
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+
+        logExceptionWarn(error, status, request, root.getMessage());
 
         StandardError standardError = new StandardError(Instant.now(),status.value(), error,
                 message, request.getRequestURI());
@@ -275,6 +294,30 @@ public class ResourceExceptionHandler {
                                                                         HttpServletRequest request) {
         String error = "Missing Servlet Request Parameter Error";
         HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<StandardError> illegalArgument(IllegalArgumentException e, HttpServletRequest request) {
+        String error = "Illegal Argument Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<StandardError> disabled(DisabledException e, HttpServletRequest request) {
+        String error = "Disabled Error";
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
 
         logExceptionWarn(error, status, request, e.getMessage());
 

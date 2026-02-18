@@ -2,8 +2,6 @@ package com.vicente.taskmanager.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.time.OffsetDateTime;
-
 @Schema(name = "UserResponse", description = "Represents the data returned for a user")
 public record UserResponseDTO(
 
@@ -23,19 +21,7 @@ public record UserResponseDTO(
                 description = "Email address of the user",
                 example = "john.doe@email.com"
         )
-        String email,
-
-        @Schema(
-                description = "Date and time when the user was created",
-                example = "2026-02-15T10:15:30Z"
-        )
-        OffsetDateTime createdAt,
-
-        @Schema(
-                description = "Date and time when the user was last updated",
-                example = "2026-02-15T12:40:00Z"
-        )
-        OffsetDateTime updatedAt
+        String email
 ) {
 }
 

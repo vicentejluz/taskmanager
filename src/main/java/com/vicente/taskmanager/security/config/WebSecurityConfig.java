@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.security.config;
 
+import com.vicente.taskmanager.model.enums.UserRole;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
@@ -34,6 +35,11 @@ public class WebSecurityConfig {
             "/"
     };
 
+    private static final String[] ADMIN = {
+            "/api/v1/users",
+            "/api/v1/users/*"
+    };
+
     public WebSecurityConfig(SecurityFilter securityFilter,
                              AuthEntryPointJwt authEntryPointJwt,
                              CustomAccessDeniedHandler customAccessDeniedHandler
@@ -59,6 +65,10 @@ public class WebSecurityConfig {
                         authorize.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                                 .requestMatchers(SWAGGER).permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/users/me")
+                                .hasAnyRole(UserRole.USER.name(), UserRole.ADMIN.name())
+                                .requestMatchers(HttpMethod.GET, ADMIN)
+                                .hasRole(UserRole.ADMIN.name())
                                 .anyRequest().authenticated()
                         // .requestMatchers("/**").access("hasRole('ADMIN') and hasRole('USER')")
                 )

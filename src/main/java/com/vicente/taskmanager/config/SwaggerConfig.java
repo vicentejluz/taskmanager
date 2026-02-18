@@ -39,7 +39,7 @@ public class SwaggerConfig {
                                     """)
                 .license(license)
                 .contact(contact)
-                .version("0.12");
+                .version("0.13");
     }
 
     private Components createComponents() {

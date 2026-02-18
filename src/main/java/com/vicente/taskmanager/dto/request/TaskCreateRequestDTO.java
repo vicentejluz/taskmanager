@@ -11,7 +11,8 @@ public record TaskCreateRequestDTO(
                 description = "Title of the task",
                 example = "Study Spring Boot"
         )
-        @NotBlank @Size(min = 1, max = 50) String title,
+        @NotBlank(message = "is required")
+        @Size(min = 1, max = 50) String title,
         @Schema(
                 description = "Detailed description of the task",
                 example = "Finish REST API module"
@@ -22,5 +23,6 @@ public record TaskCreateRequestDTO(
                 description = "Task due date",
                 example = "2026-03-10"
         )
-        @NotNull @FutureOrPresent LocalDate dueDate) {
+        @NotNull(message = "is required")
+        @FutureOrPresent LocalDate dueDate) {
 }

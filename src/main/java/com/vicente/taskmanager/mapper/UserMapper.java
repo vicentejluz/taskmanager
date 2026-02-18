@@ -2,9 +2,7 @@ package com.vicente.taskmanager.mapper;
 
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
-import com.vicente.taskmanager.dto.response.PageResponseDTO;
-import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
-import com.vicente.taskmanager.dto.response.UserResponseDTO;
+import com.vicente.taskmanager.dto.response.*;
 import com.vicente.taskmanager.model.entity.User;
 import org.springframework.data.domain.Page;
 
@@ -27,12 +25,30 @@ public final class UserMapper {
         return  new UserResponseDTO(
                 user.getId(),
                 user.getName(),
+                user.getEmail());
+    }
+
+    public static UserUpdateResponseDTO toUserUpdateDTO(User user) {
+        return  new UserUpdateResponseDTO(
+                user.getId(),
+                user.getName(),
                 user.getEmail(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
     }
 
-    public static PageResponseDTO<UserResponseDTO> toPageDTO(Page<UserResponseDTO> page) {
+    public static UserAdminResponseDTO toUserAdminDTO(User user) {
+        return  new UserAdminResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.isEnabled(),
+                user.isAccountNonLocked(),
+                user.getCreatedAt(),
+                user.getUpdatedAt());
+    }
+
+    public static PageResponseDTO<UserAdminResponseDTO> toPageDTO(Page<UserAdminResponseDTO> page) {
         return new PageResponseDTO<>(
                 page.getContent(),
                 page.getNumber(),

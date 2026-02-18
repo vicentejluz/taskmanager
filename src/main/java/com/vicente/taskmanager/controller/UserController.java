@@ -1,11 +1,20 @@
 package com.vicente.taskmanager.controller;
 
+import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
+import com.vicente.taskmanager.dto.request.UpdateUserEnabledRequest;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
+import com.vicente.taskmanager.dto.response.UserAdminResponseDTO;
 import com.vicente.taskmanager.dto.response.UserResponseDTO;
+import com.vicente.taskmanager.dto.response.UserUpdateResponseDTO;
+import com.vicente.taskmanager.exception.error.StandardError;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,35 +39,176 @@ public class UserController {
     }
 
     @Operation(
-            summary = "Find user by ID",
-            description = "Returns a user by its unique identifier"
+            summary = "Get authenticated user",
+            description = "Returns the profile of the currently authenticated user."
     )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> getMe(@AuthenticationPrincipal User user) {
+        logger.debug("GET /api/v1/users/me getMe called | userId={}", user.getId());
+        UserResponseDTO userResponseDTO = userService.getMe(user);
+        return ResponseEntity.ok(userResponseDTO);
+    }
+
+    @Operation(
+            summary = "Find user by ID",
+            description = "Returns a user by its unique identifier. Requires ADMIN role."
+    )@ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User found successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserAdminResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid id parameter",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - Admin role required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> findById(@PathVariable Long id) {
+    public ResponseEntity<UserAdminResponseDTO> findById(@PathVariable Long id) {
         logger.debug("GET /api/v1/users/{id} findById called | userId={}", id);
-        UserResponseDTO userResponseDTO = userService.findById(id);
+        UserAdminResponseDTO userResponseDTO = userService.findById(id);
         return ResponseEntity.ok(userResponseDTO);
     }
 
     @Operation(
             summary = "Find user by email",
-            description = "Returns a user by its unique identifier"
+            description = """
+                Returns a user by its unique email address.
+                Requires ADMIN role.
+                """
     )
-    @GetMapping(params = "email")
-    public ResponseEntity<UserResponseDTO> findByEmail(@RequestParam String email) {
-        logger.debug("GET /api/v1/users/{email} findByEmail called | email={}", email);
-        UserResponseDTO userResponseDTO = userService.findByEmail(email);
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserAdminResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid email parameter",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - Admin role required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @GetMapping("/by-email")
+    public ResponseEntity<UserAdminResponseDTO> findByEmail(@RequestParam String email) {
+        logger.debug("GET /api/v1/users/by-email findByEmail called | email={}", email);
+        UserAdminResponseDTO userResponseDTO = userService.findByEmail(email);
         return ResponseEntity.ok(userResponseDTO);
     }
 
     @Operation(
             summary = "Find all users",
-            description = "Returns paginated users."
+            description = "Returns paginated users. Requires ADMIN role."
     )
-    @GetMapping("/findall")
-    public ResponseEntity<PageResponseDTO<UserResponseDTO>> findAll(@ParameterObject Pageable pageable) {
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Users retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = PageResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - Admin role required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @GetMapping
+    public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> findAll(@ParameterObject Pageable pageable) {
         logger.debug("GET /api/v1/users findAll called");
-        PageResponseDTO<UserResponseDTO> pageResponseDTO = userService.findAll(pageable);
+        PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.findAll(pageable);
         if (pageResponseDTO.content().isEmpty()) {
             logger.debug("GET /api/v1/users returned empty result");
         }
@@ -66,17 +216,135 @@ public class UserController {
     }
 
     @Operation(
-            summary = "Update user",
-            description = "Updates an existing user by ID"
+            summary = "Update authenticated user",
+            description = "Updates the profile information of the currently authenticated user."
     )
-    @PatchMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> update(
-            @PathVariable Long id,
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User updated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserUpdateResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request data",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            )
+    })
+    @PatchMapping("/me")
+    public ResponseEntity<UserUpdateResponseDTO> update(
             @Valid @RequestBody UserUpdateRequestDTO request,
             @AuthenticationPrincipal User user
     ) {
-        logger.debug("PATCH /api/v1/users/{id} update called | id={}", id);
-        UserResponseDTO responseDTO = userService.update(id, user.getId(), request);
+        logger.debug("PATCH /api/v1/users/update update called | authenticatedUserId={}", user.getId());
+        UserUpdateResponseDTO responseDTO = userService.update(user, request);
         return ResponseEntity.ok(responseDTO);
+    }
+
+    @Operation(
+            summary = "Change authenticated user password",
+            description = """
+                Changes the password of the currently authenticated user.
+                The old password must match the current password.
+                The new password must be different from the current one.
+                """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Password changed successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request or business rule violation",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            )
+    })
+    @PatchMapping("/me/password")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO
+    ) {
+        logger.debug("PATCH /api/v1/users/password changePassword called | authenticatedUserId={}", user.getId());
+        userService.changePassword(user, passwordUpdateRequestDTO);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Enable or disable a user",
+            description = """
+                Enables or disables a user account by its identifier.
+                Requires ADMIN role.
+                
+                Business rules:
+                - Admin users cannot be disabled.
+                """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "User status updated successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request or business rule violation",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - Admin role required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @PatchMapping("/{id}/enabled")
+    public ResponseEntity<Void> updateUserEnabled(
+            @PathVariable Long id,
+            @Valid @RequestBody() UpdateUserEnabledRequest updateUserEnabledRequest
+    ) {
+        userService.updateUserEnabled(id, updateUserEnabledRequest.enabled());
+        return ResponseEntity.noContent().build();
     }
 }
