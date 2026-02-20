@@ -12,9 +12,13 @@ import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +34,9 @@ public class AuthServiceImpl implements AuthService {
     private final TokenService tokenService;
     private final EntityManager entityManager;
     private final AuthenticationManager authenticationManager;
+    private final Long LOCK_MINUTES;
+    private final Integer MAX_ATTEMPTS;
+
     private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     public AuthServiceImpl(
@@ -37,13 +44,17 @@ public class AuthServiceImpl implements AuthService {
             PasswordEncoder passwordEncoder,
             TokenService tokenService,
             EntityManager entityManager,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            @Value("${security.lock.minutes}") Long lockMinutes,
+            @Value("${security.lock.max_attempts}") Integer maxAttempts
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.entityManager = entityManager;
         this.authenticationManager = authenticationManager;
+        LOCK_MINUTES = lockMinutes;
+        MAX_ATTEMPTS = maxAttempts;
     }
 
     @Override
@@ -69,20 +80,37 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(noRollbackFor = { BadCredentialsException.class, LockedException.class })
     public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
+
+        User user = userRepository.findByEmail(loginRequestDTO.email()).orElseThrow(() ->
+                new BadCredentialsException("Invalid email or password"));
+
+        if(user.isLockExpired()){
+            user.unlock();
+        }
 
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                 loginRequestDTO.email(),
                 loginRequestDTO.password());
 
-        Authentication authentication = authenticationManager.authenticate(authenticationToken);
+        try {
+            Authentication authentication = authenticationManager.authenticate(authenticationToken);
 
-        User user = (User) authentication.getPrincipal();
-        String token = tokenService.generateToken(Objects.requireNonNull(user));
-        logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
+            user = (User) authentication.getPrincipal();
+            String token = tokenService.generateToken(Objects.requireNonNull(user));
 
-        return new LoginResponseDTO(token);
+            user.resetFailedAttempts();
+
+            logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
+
+            return new LoginResponseDTO(token);
+        }catch (BadCredentialsException e) {
+            logger.debug("Bad credentials | email={}", loginRequestDTO.email());
+            Objects.requireNonNull(user).registerFailedLoginAttempt(LOCK_MINUTES, MAX_ATTEMPTS);
+            throw e;
+        }
     }
 }
+

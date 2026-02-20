@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.exception.handler;
 
 import com.vicente.taskmanager.exception.*;
+import com.vicente.taskmanager.exception.error.LockedError;
 import com.vicente.taskmanager.exception.error.StandardError;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,7 +22,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.stream.Collectors;
 
@@ -317,13 +320,30 @@ public class ResourceExceptionHandler {
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<StandardError> disabled(DisabledException e, HttpServletRequest request) {
         String error = "Disabled Error";
-        HttpStatus status = HttpStatus.UNAUTHORIZED;
+        HttpStatus status = HttpStatus.FORBIDDEN;
 
         logExceptionWarn(error, status, request, e.getMessage());
 
         StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
                 request.getRequestURI());
         return ResponseEntity.status(status).body(err);
+    }
+
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<LockedError> accountLocked(AccountLockedException e, HttpServletRequest request) {
+        String error = "Account Locked Error";
+        HttpStatus status = HttpStatus.LOCKED;
+
+        long secondsToWait = Duration.between(OffsetDateTime.now(), e.getLockedUntil()).getSeconds();
+
+        logger.warn("{} | status={} method={} path={} message={} lockedUntil={}", error, status.value(), request.getMethod(),
+                request.getRequestURI(), e.getMessage(), e.getLockedUntil());
+
+        LockedError err = new LockedError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI(), Instant.from(e.getLockedUntil()));
+        return ResponseEntity.status(status).header(
+                "Retry-After", String.valueOf(Math.max(0, secondsToWait))).body(err);
     }
 
     @ExceptionHandler(Exception.class)

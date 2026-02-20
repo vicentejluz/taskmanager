@@ -50,7 +50,7 @@ public class TaskSchedulerServiceImpl implements TaskSchedulerService {
                 logger.info("[{}] Overdue tasks updated | count={}", source, count.get());
                 return;
             }
-            logger.info("[{}] Overdue tasks found but none updated due to concurrency",  source);
+            logger.warn("[{}] Overdue tasks found but none updated due to concurrency",  source);
         }
         else {
             logger.debug("[{}] No overdue tasks found", source);
@@ -86,11 +86,11 @@ public class TaskSchedulerServiceImpl implements TaskSchedulerService {
                 }
             });
             if(count.get() > 0) {
-                logger.info("[{}] tasks deleted | status={} olderThan={}days count={}",
+                logger.info("[{}] Tasks deleted | status={} olderThan={}days count={}",
                         source, taskStatus, qtdDay, count.get());
                 return;
             }
-            logger.info("[{}] Overdue tasks found but none cancelled due to concurrency",  source);
+            logger.warn("[{}] Overdue tasks found but none cancelled due to concurrency",  source);
         }else{
             logger.debug("[{}] No tasks to delete | status={} olderThan={}days", source, taskStatus, qtdDay);
         }

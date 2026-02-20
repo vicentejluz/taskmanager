@@ -4,6 +4,7 @@ import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.response.LoginResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
+import com.vicente.taskmanager.exception.error.LockedError;
 import com.vicente.taskmanager.exception.error.StandardError;
 import com.vicente.taskmanager.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -114,6 +115,14 @@ public class AuthController {
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "423",
+                    description = "Account Locked",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = LockedError.class)
                     )
             )
     })

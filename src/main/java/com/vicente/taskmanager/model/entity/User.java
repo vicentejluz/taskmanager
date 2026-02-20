@@ -8,6 +8,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -38,6 +39,12 @@ public class User extends AbstractEntity implements UserDetails {
     @Column(name = "is_account_non_locked", nullable = false)
     private boolean isAccountNonLocked;
 
+    @Column(name = "failed_attempts", nullable = false)
+    private Integer failedAttempts;
+
+    @Column(name = "lock_time")
+    private OffsetDateTime lockTime;
+
     public User() {
     }
 
@@ -47,6 +54,7 @@ public class User extends AbstractEntity implements UserDetails {
         this.password = password;
         this.isEnabled = true;
         this.isAccountNonLocked = true;
+        this.failedAttempts = 0;
     }
 
     @Override
@@ -99,7 +107,7 @@ public class User extends AbstractEntity implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return isAccountNonLocked;
+        return this.isAccountNonLocked;
     }
 
     public void setAccountNonLocked(boolean accountNonLocked) {
@@ -112,6 +120,18 @@ public class User extends AbstractEntity implements UserDetails {
         return email;
     }
 
+    public Integer getFailedAttempts() {
+        return failedAttempts;
+    }
+
+    public OffsetDateTime getLockTime() {
+        return lockTime;
+    }
+
+    public void setLockTime(OffsetDateTime lockTime) {
+        this.lockTime = lockTime;
+    }
+
     @Override
     public boolean isAccountNonExpired() {
         return true;
@@ -120,5 +140,36 @@ public class User extends AbstractEntity implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() {
         return true;
+    }
+    
+    public void registerFailedLoginAttempt(long lockMinutes, int maxAttempts) {
+        this.incrementFailedAttempts();
+        if (this.failedAttempts >= maxAttempts) {
+            this.isAccountNonLocked = false;
+            this.lockTime = this.calculateLockExpiration(lockMinutes);
+        }
+    }
+
+    public void resetFailedAttempts() {
+        this.failedAttempts = 0;
+    }
+
+    public void unlock() {
+        this.resetFailedAttempts();
+        this.setLockTime(null);
+        this.setAccountNonLocked(true);
+    }
+
+    public boolean isLockExpired() {
+        return this.lockTime != null &&
+                this.lockTime.isBefore(OffsetDateTime.now());
+    }
+
+    private void incrementFailedAttempts() {
+        this.failedAttempts += 1;
+    }
+
+    private OffsetDateTime calculateLockExpiration(long lockMinutes) {
+        return OffsetDateTime.now().plusMinutes(lockMinutes);
     }
 }

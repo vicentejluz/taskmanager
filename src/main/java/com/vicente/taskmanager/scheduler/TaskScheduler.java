@@ -100,12 +100,12 @@ public class TaskScheduler {
 
     @EventListener(ApplicationReadyEvent.class)
     public void runOnStartup() {
-        execute("STARTUP");
+        execute("TASK STARTUP");
     }
     
     @Scheduled(cron = "${spring.task.scheduling.cron}")
     public void runScheduled() {
-        execute("SCHEDULER");
+        execute("TASK SCHEDULER");
     }
 
 

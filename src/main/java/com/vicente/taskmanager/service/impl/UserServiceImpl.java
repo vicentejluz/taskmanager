@@ -26,6 +26,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
+
 @Service
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
@@ -87,7 +89,8 @@ public class UserServiceImpl implements UserService {
     public UserUpdateResponseDTO update(User authenticatedUser, UserUpdateRequestDTO userUpdateRequestDTO) {
         logger.info("Starting update user | authenticatedUserId={}", authenticatedUser.getId());
 
-        if(userRepository.existsByEmail(authenticatedUser.getEmail())){
+        if(userRepository.existsByEmail(userUpdateRequestDTO.email()) &&
+                !Objects.equals(authenticatedUser.getEmail(), userUpdateRequestDTO.email())){
             logger.debug("Registration attempt failed: email '{}' is already registered.",  authenticatedUser.getEmail());
             throw new EmailAlreadyExistsException("Email already registered");
         }

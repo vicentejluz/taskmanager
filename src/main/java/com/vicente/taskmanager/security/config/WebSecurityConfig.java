@@ -1,14 +1,17 @@
 package com.vicente.taskmanager.security.config;
 
 import com.vicente.taskmanager.model.enums.UserRole;
+import com.vicente.taskmanager.security.AccountStatusUserDetailsChecker;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
+import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -27,6 +30,7 @@ public class WebSecurityConfig {
     private final SecurityFilter securityFilter;
     private final AuthEntryPointJwt authEntryPointJwt;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
+    private final UserDetailsServiceImpl userDetailsService;
 
     private static final String[] SWAGGER = {
             "/v3/api-docs/**",
@@ -37,24 +41,28 @@ public class WebSecurityConfig {
 
     private static final String[] ADMIN = {
             "/api/v1/users",
-            "/api/v1/users/*"
+            "/api/v1/users/*",
+            "/api/v1/users/*/enabled"
     };
 
     public WebSecurityConfig(SecurityFilter securityFilter,
                              AuthEntryPointJwt authEntryPointJwt,
-                             CustomAccessDeniedHandler customAccessDeniedHandler
+                             CustomAccessDeniedHandler customAccessDeniedHandler, UserDetailsServiceImpl userDetailsService
     ) {
         this.securityFilter = securityFilter;
         this.authEntryPointJwt = authEntryPointJwt;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
+        this.userDetailsService = userDetailsService;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, DaoAuthenticationProvider provider) {
         return http.headers(headers -> headers.frameOptions(
                 HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .authenticationProvider(provider)
                 .exceptionHandling( ex -> {
                         ex.authenticationEntryPoint(authEntryPointJwt);
                         ex.accessDeniedHandler(customAccessDeniedHandler);
@@ -65,9 +73,9 @@ public class WebSecurityConfig {
                         authorize.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                                 .requestMatchers(SWAGGER).permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/v1/users/me")
+                                .requestMatchers("/api/v1/users/me")
                                 .hasAnyRole(UserRole.USER.name(), UserRole.ADMIN.name())
-                                .requestMatchers(HttpMethod.GET, ADMIN)
+                                .requestMatchers(ADMIN)
                                 .hasRole(UserRole.ADMIN.name())
                                 .anyRequest().authenticated()
                         // .requestMatchers("/**").access("hasRole('ADMIN') and hasRole('USER')")
@@ -76,6 +84,18 @@ public class WebSecurityConfig {
                 .build();
     }
 
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider(
+            PasswordEncoder passwordEncoder,
+            AccountStatusUserDetailsChecker checker
+    ) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setPreAuthenticationChecks(checker);
+
+        return provider;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -86,5 +106,4 @@ public class WebSecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
         return config.getAuthenticationManager();
     }
-
 }
