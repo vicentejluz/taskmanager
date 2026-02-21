@@ -16,4 +16,7 @@ public interface TaskService {
     TaskResponseDTO cancel(Long id, Long userId);
     TaskResponseDTO findById(Long id, Long userId);
     PageResponseDTO<TaskResponseDTO> find(String status, LocalDate dueDate, Long userId, Pageable pageable);
+    TaskResponseDTO findById(Long id);
+    void deleteTask(Long id);
+
 }

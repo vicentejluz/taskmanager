@@ -5,7 +5,6 @@ import com.vicente.taskmanager.security.AccountStatusUserDetailsChecker;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
-import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,6 +18,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -30,7 +30,6 @@ public class WebSecurityConfig {
     private final SecurityFilter securityFilter;
     private final AuthEntryPointJwt authEntryPointJwt;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
-    private final UserDetailsServiceImpl userDetailsService;
 
     private static final String[] SWAGGER = {
             "/v3/api-docs/**",
@@ -40,19 +39,21 @@ public class WebSecurityConfig {
     };
 
     private static final String[] ADMIN = {
-            "/api/v1/users",
-            "/api/v1/users/*",
-            "/api/v1/users/*/enabled"
+            "/api/v1/admin/users",
+            "/api/v1/admin/users/*",
+            "/api/v1/admin/users/*/enabled",
+            "/api/v1/admin/tasks/delete/*",
+            "/api/v1/admin/users/*/tasks",
+            "/api/v1/admin/tasks/*"
     };
 
     public WebSecurityConfig(SecurityFilter securityFilter,
                              AuthEntryPointJwt authEntryPointJwt,
-                             CustomAccessDeniedHandler customAccessDeniedHandler, UserDetailsServiceImpl userDetailsService
+                             CustomAccessDeniedHandler customAccessDeniedHandler
     ) {
         this.securityFilter = securityFilter;
         this.authEntryPointJwt = authEntryPointJwt;
         this.customAccessDeniedHandler = customAccessDeniedHandler;
-        this.userDetailsService = userDetailsService;
     }
 
     @Bean
@@ -87,7 +88,8 @@ public class WebSecurityConfig {
     @Bean
     public DaoAuthenticationProvider authenticationProvider(
             PasswordEncoder passwordEncoder,
-            AccountStatusUserDetailsChecker checker
+            AccountStatusUserDetailsChecker checker,
+            UserDetailsService userDetailsService
     ) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
 

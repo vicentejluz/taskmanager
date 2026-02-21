@@ -144,6 +144,17 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     @Transactional(readOnly = true)
+    public TaskResponseDTO findById(Long id) {
+        logger.info("Starting find by id task | taskId={}", id);
+        Task task = taskRepository.findById(id).orElseThrow(() ->
+                new TaskNotFoundException("Task not found with id: " + id));
+
+        logger.info("Task found successfully | taskId={}", task.getId());
+        return TaskMapper.toDTO(task);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponseDTO<TaskResponseDTO> find(String status, LocalDate dueDate, Long userId, Pageable pageable) {
         logger.info("Starting find tasks with status {} and dueDate {}", status, dueDate);
 
@@ -169,6 +180,18 @@ public class TaskServiceImpl implements TaskService {
                 tasks.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
 
         return TaskMapper.toPageDTO(tasks);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTask(Long id) {
+        logger.info("Starting delete task | taskId={}", id);
+        Task task = taskRepository.findById(id).orElseThrow(() ->
+                new TaskNotFoundException("Task not found with id: " + id));
+
+        taskRepository.delete(task);
+
+        logger.info("Task deleted successfully | taskId={}", task.getId());
     }
 
     private static @NonNull Pageable sortPageable(Pageable pageable) {

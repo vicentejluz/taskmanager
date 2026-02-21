@@ -12,7 +12,6 @@ import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.criteria.CriteriaBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -108,7 +107,9 @@ public class AuthServiceImpl implements AuthService {
             return new LoginResponseDTO(token);
         }catch (BadCredentialsException e) {
             logger.debug("Bad credentials | email={}", loginRequestDTO.email());
-            Objects.requireNonNull(user).registerFailedLoginAttempt(LOCK_MINUTES, MAX_ATTEMPTS);
+            if(!Objects.requireNonNull(user).getRoles().contains(UserRole.ADMIN)) {
+                Objects.requireNonNull(user).registerFailedLoginAttempt(LOCK_MINUTES, MAX_ATTEMPTS);
+            }
             throw e;
         }
     }
