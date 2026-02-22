@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.security;
+package com.vicente.taskmanager.security.checker;
 
 import com.vicente.taskmanager.exception.AccountLockedException;
 import com.vicente.taskmanager.model.entity.User;

@@ -309,8 +309,20 @@ public class UserController {
     }
 
     @Operation(
-            summary = "Admin - Find all users",
-            description = "Returns paginated users. Requires ADMIN role."
+            summary = "Admin - Find user",
+            description =
+                    """
+                    Retrieves a paginated list of users based on optional filter parameters.
+    
+                    All filters are optional:
+                    - name: Performs a partial match (case-insensitive) on the user's name.
+                    - enabled: Filters users by enabled status.
+                    - locked-account: Filters users by account lock status.
+    
+                    If no filters are provided, all users are returned paginated.
+    
+                    This endpoint requires ADMIN role.
+                    """
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -336,14 +348,28 @@ public class UserController {
                             mediaType = "application/json",
                             schema = @Schema(implementation = StandardError.class)
                     )
-            )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid filter parameters",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
     })
     @GetMapping("/admin/users")
-    public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> findAll(@ParameterObject Pageable pageable) {
-        logger.debug("GET /api/v1/users findAll called");
-        PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.findAll(pageable);
+    public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(
+            @RequestParam(required = false) String name,
+            @RequestParam(value = "enabled", required = false) Boolean isEnabled,
+            @RequestParam(value = "locked-account", required = false) Boolean isAccountNonLocked,
+            @ParameterObject Pageable pageable) {
+        logger.debug("GET /api/v1/admin/users find called | filters: name={} enabled={} accountNonLocked={}",
+                name, isEnabled, isAccountNonLocked);
+        PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.find(
+                name, isEnabled, isAccountNonLocked, pageable);
         if (pageResponseDTO.content().isEmpty()) {
-            logger.debug("GET /api/v1/users returned empty result");
+            logger.debug("GET /api/v1/admin/users returned empty result");
         }
         return ResponseEntity.ok(pageResponseDTO);
     }

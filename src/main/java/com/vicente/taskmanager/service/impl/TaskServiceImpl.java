@@ -11,6 +11,8 @@ import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.repository.TaskRepository;
+import com.vicente.taskmanager.dto.filter.TaskFilterDTO;
+import com.vicente.taskmanager.repository.specification.TaskSpecification;
 import com.vicente.taskmanager.service.TaskService;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.NonNull;
@@ -19,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -160,21 +163,11 @@ public class TaskServiceImpl implements TaskService {
 
         pageable = sortPageable(pageable);
 
-        Page<TaskResponseDTO> tasks;
+        logTaskFindStrategy(status, dueDate);
 
-        if((status != null && !status.isBlank())  && dueDate != null) {
-            logger.debug("Find strategy: status + dueDate | status={} dueDate={}", status, dueDate);
-            tasks = findByStatusAndDueDateAndUserId(status, dueDate, userId, pageable);
-        } else if(status != null && !status.isBlank()) {
-            logger.debug("Find strategy: status | status={}", status);
-            tasks = findByStatusAndUserId(status, userId, pageable);
-        } else if(dueDate != null) {
-            logger.debug("Find strategy: dueDate | dueDate={}", dueDate);
-            tasks = findByDueDateAndUserId(dueDate, userId, pageable);
-        } else {
-            logger.debug("Find strategy: all tasks");
-            tasks = findAllByUserId(userId, pageable);
-        }
+        Specification<Task> spec = TaskSpecification.filter(new TaskFilterDTO(userId,
+                TaskStatus.converter(status), dueDate));
+        Page<TaskResponseDTO> tasks = findAll(spec, pageable);
 
         logger.info("Find tasks success | totalElements={} totalPages={} page={} size={}", tasks.getTotalElements(),
                 tasks.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
@@ -212,31 +205,24 @@ public class TaskServiceImpl implements TaskService {
                 new TaskNotFoundException("Task not found or you do not have permission to access it"));
     }
 
-    private Page<TaskResponseDTO> findByStatusAndDueDateAndUserId(
-            String status,
-            LocalDate dueDate,
-            Long userId,
-            Pageable pageable
-    ){
-         return taskRepository.findByStatusAndDueDateAndUserId(
-                 TaskStatus.converter(status), dueDate, userId, pageable).map(TaskMapper::toDTO);
-    }
-
-    private Page<TaskResponseDTO> findByStatusAndUserId(String status, Long userId, Pageable pageable){
-        return taskRepository.findByStatusAndUserId(TaskStatus.converter(status), userId, pageable)
-                .map(TaskMapper::toDTO);
-    }
-
-    private Page<TaskResponseDTO> findByDueDateAndUserId(LocalDate dueDate, Long userId, Pageable pageable){
-        return taskRepository.findByDueDateAndUserId(dueDate, userId, pageable).map(TaskMapper::toDTO);
-    }
-
-    private Page<TaskResponseDTO> findAllByUserId(Long userId, Pageable pageable){
-        return taskRepository.findAllByUserId(userId, pageable).map(TaskMapper::toDTO);
+    private Page<TaskResponseDTO> findAll(Specification<Task> spec, Pageable pageable){
+        return taskRepository.findAll(spec, pageable).map(TaskMapper::toDTO);
     }
 
     private void logTaskStatusChange(Task task, Long userId, TaskStatus previousStatus) {
         logger.info("Task status changed | taskId={} userId={} from={} to={}", task.getId(), userId,
                 previousStatus, task.getStatus());
+    }
+
+    private void logTaskFindStrategy(String status, LocalDate dueDate) {
+        if((status != null && !status.isBlank())  && dueDate != null) {
+            logger.debug("Find strategy: status + dueDate | status={} dueDate={}", status, dueDate);
+        } else if(status != null && !status.isBlank()) {
+            logger.debug("Find strategy: status | status={}", status);
+        } else if(dueDate != null) {
+            logger.debug("Find strategy: dueDate | dueDate={}", dueDate);
+        } else {
+            logger.debug("Find strategy: all tasks");
+        }
     }
 }

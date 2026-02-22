@@ -15,6 +15,8 @@ import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.model.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
+import com.vicente.taskmanager.repository.specification.UserSpecification;
+import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.service.UserService;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.NonNull;
@@ -22,10 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Objects;
 
 @Service
@@ -76,11 +78,24 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponseDTO<UserAdminResponseDTO> findAll(Pageable pageable) {
-        logger.info("Starting findAll users");
-        Page<UserAdminResponseDTO> users = userRepository.findAll(pageable).map(UserMapper::toUserAdminDTO);
+    public PageResponseDTO<UserAdminResponseDTO> find(
+            String name,
+            Boolean isEnabled,
+            Boolean isAccountNonLocked,
+            Pageable pageable
+    ) {
+        logger.info("Starting find users with name {} and isEnabled {} and isAccountNonLocked {}",
+                name, isEnabled, isAccountNonLocked);
 
-        logger.info("Finished findAll users");
+        logUserFindStrategy(name, isEnabled, isAccountNonLocked);
+
+        Specification<User> spec = UserSpecification.filter(new UserFilterDTO(
+                name, isEnabled, isAccountNonLocked));
+        Page<UserAdminResponseDTO> users = userRepository.findAll(spec, pageable)
+                .map(UserMapper::toUserAdminDTO);
+
+        logger.info("Find users success | totalElements={} totalPages={} page={} size={}", users.getTotalElements(),
+                users.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
         return UserMapper.toPageDTO(users);
     }
 
@@ -123,7 +138,7 @@ public class UserServiceImpl implements UserService {
                 authenticatedUser.getPassword())
         ) {
             throw new IllegalArgumentException(
-                    "New password must be different from current password."
+                    "The new password must be different from the current password."
             );
         }
 
@@ -165,5 +180,27 @@ public class UserServiceImpl implements UserService {
             logger.debug("User not found | userId={}", id);
             return new UserNotFoundException("User Not found");
         });
+    }
+
+    private void logUserFindStrategy(String name, Boolean isEnabled, Boolean isAccountNonLocked) {
+        if((name != null && !name.isBlank())  && isEnabled != null && isAccountNonLocked != null) {
+            logger.debug("Find strategy: name + isEnabled + isAccountNonLocked | name={} enabled={} accountNonLocked={}",
+                    name, isEnabled, isAccountNonLocked);
+        } else if((name != null && !name.isBlank()) && isEnabled != null) {
+            logger.debug("Find strategy: name + isEnabled | name={} enabled={}", name, isEnabled);
+        } else if((name != null && !name.isBlank())  && isAccountNonLocked != null) {
+            logger.debug("Find strategy: name + isAccountNonLocked | name={} accountNonLocked={}", name, isAccountNonLocked);
+        } else if((name != null && !name.isBlank())) {
+            logger.debug("Find strategy: name | name={}", name);
+        } else if(isEnabled != null && isAccountNonLocked != null) {
+            logger.debug("Find strategy: isEnabled + isAccountNonLocked | enabled={} accountNonLocked={}",
+                    isEnabled, isAccountNonLocked);
+        }else if(isEnabled != null){
+            logger.debug("Find strategy: isEnabled | enabled={}", isEnabled);
+        }else if(isAccountNonLocked != null){
+            logger.debug("Find strategy: isAccountNonLocked | enabled={}", isAccountNonLocked);
+        }else{
+            logger.debug("Find strategy: all users");
+        }
     }
 }

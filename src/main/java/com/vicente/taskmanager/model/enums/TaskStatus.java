@@ -2,6 +2,8 @@ package com.vicente.taskmanager.model.enums;
 
 import com.vicente.taskmanager.exception.InvalidTaskStatusException;
 
+import java.util.Objects;
+
 public enum TaskStatus {
     PENDING("Pending"),
     IN_PROGRESS("In Progress"),
@@ -20,7 +22,9 @@ public enum TaskStatus {
 
     public static TaskStatus converter(String status) {
         try {
-            return TaskStatus.valueOf(status.toUpperCase().trim());
+            if(Objects.nonNull(status) && !status.isBlank())
+                return TaskStatus.valueOf(status.toUpperCase().trim());
+            return null;
         }catch (IllegalArgumentException e) {
             throw new InvalidTaskStatusException("Invalid task status: " + status);
         }

@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.security.config;
 
 import com.vicente.taskmanager.model.enums.UserRole;
-import com.vicente.taskmanager.security.AccountStatusUserDetailsChecker;
+import com.vicente.taskmanager.security.checker.AccountStatusUserDetailsChecker;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
