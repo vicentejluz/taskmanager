@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.service;
 
+import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
@@ -13,8 +14,9 @@ public interface UserService {
     UserResponseDTO getMe(User user);
     UserAdminResponseDTO findById(Long id);
     UserAdminResponseDTO findByEmail(String email);
-    PageResponseDTO<UserAdminResponseDTO> find(String name, Boolean isEnabled, Boolean isAccountNonLocked, Pageable pageable);
+    PageResponseDTO<UserAdminResponseDTO> find(UserFilterDTO filter, Pageable pageable);
     UserUpdateResponseDTO update(User authenticatedUser, UserUpdateRequestDTO userUpdateRequestDTO);
     void changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO);
     void updateUserEnabled(Long id, boolean enabled);
+    void delete(User user);
 }

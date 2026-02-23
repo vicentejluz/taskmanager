@@ -337,13 +337,26 @@ public class ResourceExceptionHandler {
 
         long secondsToWait = Duration.between(OffsetDateTime.now(), e.getLockedUntil()).getSeconds();
 
-        logger.warn("{} | status={} method={} path={} message={} lockedUntil={}", error, status.value(), request.getMethod(),
-                request.getRequestURI(), e.getMessage(), e.getLockedUntil());
+        logger.warn("{} | status={} method={} path={} message={} lockedUntil={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage(), e.getLockedUntil());
 
         LockedError err = new LockedError(Instant.now(), status.value(), error, e.getMessage(),
                 request.getRequestURI(), Instant.from(e.getLockedUntil()));
         return ResponseEntity.status(status).header(
                 "Retry-After", String.valueOf(Math.max(0, secondsToWait))).body(err);
+    }
+
+    @ExceptionHandler(AccountDeletedException.class)
+    public ResponseEntity<StandardError> accountDeleted(AccountDeletedException e, HttpServletRequest request) {
+        String error = "Account Deleted Error";
+        HttpStatus status = HttpStatus.LOCKED;
+
+        logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
     }
 
     @ExceptionHandler(Exception.class)

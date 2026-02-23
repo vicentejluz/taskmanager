@@ -1,10 +1,7 @@
 package com.vicente.taskmanager.exception.error;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import java.time.Instant;
-import java.time.OffsetDateTime;
 
 public record LockedError(
         @Schema(

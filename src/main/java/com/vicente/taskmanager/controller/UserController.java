@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.controller;
 
+import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
 import com.vicente.taskmanager.dto.request.UpdateUserEnabledRequest;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
@@ -140,6 +141,47 @@ public class UserController {
     ) {
         logger.debug("PATCH /api/v1/users/password changePassword called | authenticatedUserId={}", user.getId());
         userService.changePassword(user, passwordUpdateRequestDTO);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Delete authenticated user",
+            description = """
+            Performs a soft delete of the currently authenticated user account.
+            
+            Business rules:
+            - The user is marked as deleted (soft delete).
+            - The account can no longer authenticate after deletion.
+            
+            Requires USER role.
+            """
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "User deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - USER role required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @DeleteMapping("/users/me/delete")
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal User user) {
+        logger.debug("DELETE /api/v1/users/me/delete delete called | authenticatedUserId={}", user.getId());
+        userService.delete(user);
         return ResponseEntity.noContent().build();
     }
 
@@ -360,14 +402,11 @@ public class UserController {
     })
     @GetMapping("/admin/users")
     public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(
-            @RequestParam(required = false) String name,
-            @RequestParam(value = "enabled", required = false) Boolean isEnabled,
-            @RequestParam(value = "locked-account", required = false) Boolean isAccountNonLocked,
+            @ParameterObject UserFilterDTO filter,
             @ParameterObject Pageable pageable) {
         logger.debug("GET /api/v1/admin/users find called | filters: name={} enabled={} accountNonLocked={}",
-                name, isEnabled, isAccountNonLocked);
-        PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.find(
-                name, isEnabled, isAccountNonLocked, pageable);
+                filter.name(), filter.enabled(), filter.accountNonLocked());
+        PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.find(filter, pageable);
         if (pageResponseDTO.content().isEmpty()) {
             logger.debug("GET /api/v1/admin/users returned empty result");
         }

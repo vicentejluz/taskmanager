@@ -30,6 +30,18 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
         OffsetDateTime thresholdDate = OffsetDateTime.now().minusDays(180);
         List<User> users = userRepository.findByIsEnabledFalseAndUpdatedAtBefore(thresholdDate);
 
+        deleteUsers(users, thresholdDate);
+    }
+
+    @Override
+    public void deleteUsersWithDeleteAtOlderThan180Days() {
+        OffsetDateTime thresholdDate = OffsetDateTime.now().minusDays(180);
+        List<User> users = userRepository.findByDeletedAtBefore(thresholdDate);
+
+        deleteUsers(users, thresholdDate);
+    }
+
+    private void deleteUsers(List<User> users, OffsetDateTime thresholdDate) {
         if (!users.isEmpty()) {
             AtomicInteger count = new AtomicInteger();
             users.forEach(user -> {

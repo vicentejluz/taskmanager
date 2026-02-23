@@ -4,6 +4,7 @@ import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.response.LoginResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
+import com.vicente.taskmanager.exception.AccountDeletedException;
 import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
 import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
@@ -60,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public RegisterUserResponseDTO register(RegisterUserRequestDTO registerUserRequest) {
         logger.info("Starting user registration | email={}", registerUserRequest.email());
-        if(userRepository.existsByEmail(registerUserRequest.email())){
+        if(userRepository.existsByEmail(registerUserRequest.email().toLowerCase().trim())){
             logger.debug("Registration attempt failed: email '{}' is already registered.",  registerUserRequest.email());
             throw new EmailAlreadyExistsException("Email already registered");
         }
@@ -83,15 +84,20 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
-        User user = userRepository.findByEmail(loginRequestDTO.email()).orElseThrow(() ->
+        User user = userRepository.findByEmail(loginRequestDTO.email().toLowerCase().trim()).orElseThrow(() ->
                 new BadCredentialsException("Invalid email or password"));
+
+        if(user.getDeletedAt() != null){
+            logger.debug("User account has been deleted | email={}", user.getEmail());
+            throw new AccountDeletedException("Invalid email or password");
+        }
 
         if(user.isLockExpired()){
             user.unlock();
         }
 
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                loginRequestDTO.email(),
+                loginRequestDTO.email().toLowerCase().trim(),
                 loginRequestDTO.password());
 
         try {

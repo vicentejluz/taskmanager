@@ -76,6 +76,8 @@ public class WebSecurityConfig {
                                 .requestMatchers(SWAGGER).permitAll()
                                 .requestMatchers("/api/v1/users/me")
                                 .hasAnyRole(UserRole.USER.name(), UserRole.ADMIN.name())
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/users/me/delete")
+                                .hasRole(UserRole.USER.name())
                                 .requestMatchers(ADMIN)
                                 .hasRole(UserRole.ADMIN.name())
                                 .anyRequest().authenticated()

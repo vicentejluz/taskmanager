@@ -45,12 +45,15 @@ public class User extends AbstractEntity implements UserDetails {
     @Column(name = "lock_time")
     private OffsetDateTime lockTime;
 
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
     public User() {
     }
 
     public User(String name, String email, String password) {
         this.name = name;
-        this.email = email;
+        this.email = email == null ? null : email.toLowerCase().trim();
         this.password = password;
         this.isEnabled = true;
         this.isAccountNonLocked = true;
@@ -77,7 +80,7 @@ public class User extends AbstractEntity implements UserDetails {
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = email == null ? null : email.toLowerCase().trim();
     }
 
     public String getPassword() {
@@ -130,6 +133,14 @@ public class User extends AbstractEntity implements UserDetails {
 
     public void setLockTime(OffsetDateTime lockTime) {
         this.lockTime = lockTime;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt() {
+        this.deletedAt = OffsetDateTime.now();
     }
 
     @Override

@@ -11,9 +11,10 @@ public final class UserSpecification {
 
     public static Specification<User> filter(UserFilterDTO userFilter) {
         return Specification
-                .where(byName(userFilter.name()))
-                .and(byEnabled(userFilter.isEnabled()))
-                .and(byAccountNonLocked(userFilter.isAccountNonLocked()));
+                .where(byDeleteAtIsNull())
+                .and(byName(userFilter.name()))
+                .and(byEnabled(userFilter.enabled()))
+                .and(byAccountNonLocked(userFilter.accountNonLocked()));
     }
 
     private static Specification<User> byName(String name) {
@@ -27,23 +28,28 @@ public final class UserSpecification {
         };
     }
 
-    private static Specification<User> byEnabled(Boolean isEnabled) {
+    private static Specification<User> byEnabled(Boolean enabled) {
         return  (root, _, cb) -> {
-            if(Objects.nonNull(isEnabled)) {
-                return cb.equal(root.get("isEnabled"), isEnabled);
+            if(Objects.nonNull(enabled)) {
+                return cb.equal(root.get("isEnabled"), enabled);
             }
 
             return null;
         };
     }
 
-    private static Specification<User> byAccountNonLocked(Boolean isAccountNonLocked) {
+    private static Specification<User> byAccountNonLocked(Boolean accountNonLocked) {
         return  (root, _, cb) -> {
-            if(Objects.nonNull(isAccountNonLocked)) {
-                return cb.equal(root.get("isAccountNonLocked"), isAccountNonLocked);
+            if(Objects.nonNull(accountNonLocked)) {
+                return cb.equal(root.get("isAccountNonLocked"), accountNonLocked);
             }
 
             return null;
         };
+    }
+
+    private static Specification<User> byDeleteAtIsNull() {
+        return  (root, _, cb) ->
+                cb.isNull(root.get("deleteAt"));
     }
 }

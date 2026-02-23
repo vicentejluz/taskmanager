@@ -14,5 +14,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     boolean existsByEmail(String email);
     Optional<User> findByEmail(String username);
     List<User> findByIsEnabledFalseAndUpdatedAtBefore(OffsetDateTime date);
+    List<User> findByDeletedAtBefore(OffsetDateTime date);
     List<User> findByIsAccountNonLockedFalseAndLockTimeBefore(OffsetDateTime date);
 }

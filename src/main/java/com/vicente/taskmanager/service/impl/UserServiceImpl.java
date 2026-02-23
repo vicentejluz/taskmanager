@@ -67,7 +67,7 @@ public class UserServiceImpl implements UserService {
     public UserAdminResponseDTO findByEmail(String email) {
         logger.info("Starting findByEmail user | email={}", email);
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> {
+        User user = userRepository.findByEmail(email.toLowerCase().trim()).orElseThrow(() -> {
             logger.debug("User not found with this email | email={}", email);
             return new UserNotFoundException("User Not found with this email " + email);
         });
@@ -78,19 +78,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponseDTO<UserAdminResponseDTO> find(
-            String name,
-            Boolean isEnabled,
-            Boolean isAccountNonLocked,
-            Pageable pageable
-    ) {
+    public PageResponseDTO<UserAdminResponseDTO> find(UserFilterDTO filter, Pageable pageable) {
         logger.info("Starting find users with name {} and isEnabled {} and isAccountNonLocked {}",
-                name, isEnabled, isAccountNonLocked);
+                filter.name(), filter.enabled(), filter.accountNonLocked());
 
-        logUserFindStrategy(name, isEnabled, isAccountNonLocked);
+        logUserFindStrategy(filter);
 
-        Specification<User> spec = UserSpecification.filter(new UserFilterDTO(
-                name, isEnabled, isAccountNonLocked));
+        Specification<User> spec = UserSpecification.filter(filter);
         Page<UserAdminResponseDTO> users = userRepository.findAll(spec, pageable)
                 .map(UserMapper::toUserAdminDTO);
 
@@ -104,8 +98,8 @@ public class UserServiceImpl implements UserService {
     public UserUpdateResponseDTO update(User authenticatedUser, UserUpdateRequestDTO userUpdateRequestDTO) {
         logger.info("Starting update user | authenticatedUserId={}", authenticatedUser.getId());
 
-        if(userRepository.existsByEmail(userUpdateRequestDTO.email()) &&
-                !Objects.equals(authenticatedUser.getEmail(), userUpdateRequestDTO.email())){
+        if(userRepository.existsByEmail(userUpdateRequestDTO.email().toLowerCase().trim()) &&
+                !Objects.equals(authenticatedUser.getEmail(), userUpdateRequestDTO.email().toLowerCase().trim())){
             logger.debug("Registration attempt failed: email '{}' is already registered.",  authenticatedUser.getEmail());
             throw new EmailAlreadyExistsException("Email already registered");
         }
@@ -155,7 +149,7 @@ public class UserServiceImpl implements UserService {
         logger.info("Starting updateUserEnabled user | id={}", id);
         User user = getUser(id);
 
-        checkUserCanBeModified(user, enabled);
+        if(!enabled) validateCanDisable(user);
 
         if(user.isEnabled() != enabled) {
             user.setEnabled(enabled);
@@ -166,11 +160,26 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    private void checkUserCanBeModified(User user, boolean enabled) {
+    @Override
+    @Transactional
+    public void delete(User user) {
+        logger.info("Starting delete user | id={}", user.getId());
+
+        validateCanDisable(user);
+
+        user.setEnabled(false);
+        user.setDeletedAt();
+
+        userRepository.save(user);
+
+        logger.info("User deleted successfully | id={}", user.getId());
+    }
+
+    private void validateCanDisable(User user) {
         boolean isAdmin = user.getRoles().contains(UserRole.ADMIN);
 
-        if (isAdmin && !enabled) {
-            throw new UserOperationNotAllowedException("Admin users cannot be disabled.");
+        if (isAdmin) {
+            throw new UserOperationNotAllowedException("This action is not allowed for administrator accounts.");
         }
     }
 
@@ -182,23 +191,25 @@ public class UserServiceImpl implements UserService {
         });
     }
 
-    private void logUserFindStrategy(String name, Boolean isEnabled, Boolean isAccountNonLocked) {
-        if((name != null && !name.isBlank())  && isEnabled != null && isAccountNonLocked != null) {
-            logger.debug("Find strategy: name + isEnabled + isAccountNonLocked | name={} enabled={} accountNonLocked={}",
-                    name, isEnabled, isAccountNonLocked);
-        } else if((name != null && !name.isBlank()) && isEnabled != null) {
-            logger.debug("Find strategy: name + isEnabled | name={} enabled={}", name, isEnabled);
-        } else if((name != null && !name.isBlank())  && isAccountNonLocked != null) {
-            logger.debug("Find strategy: name + isAccountNonLocked | name={} accountNonLocked={}", name, isAccountNonLocked);
-        } else if((name != null && !name.isBlank())) {
-            logger.debug("Find strategy: name | name={}", name);
-        } else if(isEnabled != null && isAccountNonLocked != null) {
-            logger.debug("Find strategy: isEnabled + isAccountNonLocked | enabled={} accountNonLocked={}",
-                    isEnabled, isAccountNonLocked);
-        }else if(isEnabled != null){
-            logger.debug("Find strategy: isEnabled | enabled={}", isEnabled);
-        }else if(isAccountNonLocked != null){
-            logger.debug("Find strategy: isAccountNonLocked | enabled={}", isAccountNonLocked);
+    private void logUserFindStrategy(UserFilterDTO filter) {
+        boolean hasName = filter.name() != null && !filter.name().isBlank();
+        if(hasName && filter.enabled() != null && filter.accountNonLocked() != null) {
+            logger.debug("Find strategy: name + enabled + accountNonLocked | name={} enabled={} accountNonLocked={}",
+                    filter.name(), filter.enabled(), filter.accountNonLocked());
+        } else if(hasName && filter.enabled() != null) {
+            logger.debug("Find strategy: name + enabled | name={} enabled={}", filter.name(), filter.enabled());
+        } else if(hasName && filter.accountNonLocked() != null) {
+            logger.debug("Find strategy: name + accountNonLocked | name={} accountNonLocked={}",
+                    filter.name(), filter.accountNonLocked());
+        } else if(hasName) {
+            logger.debug("Find strategy: name | name={}", filter.name());
+        } else if(filter.enabled() != null && filter.accountNonLocked() != null) {
+            logger.debug("Find strategy: enabled + accountNonLocked | enabled={} accountNonLocked={}",
+                    filter.enabled(), filter.accountNonLocked());
+        }else if(filter.enabled() != null){
+            logger.debug("Find strategy: enabled | enabled={}", filter.enabled());
+        }else if(filter.accountNonLocked() != null){
+            logger.debug("Find strategy: accountNonLocked | enabled={}", filter.accountNonLocked());
         }else{
             logger.debug("Find strategy: all users");
         }
