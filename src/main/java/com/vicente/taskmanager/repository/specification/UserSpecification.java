@@ -11,7 +11,7 @@ public final class UserSpecification {
 
     public static Specification<User> filter(UserFilterDTO userFilter) {
         return Specification
-                .where(byDeleteAtIsNull())
+                .where(byDeletedAtIsNull())
                 .and(byName(userFilter.name()))
                 .and(byEnabled(userFilter.enabled()))
                 .and(byAccountNonLocked(userFilter.accountNonLocked()));
@@ -48,8 +48,8 @@ public final class UserSpecification {
         };
     }
 
-    private static Specification<User> byDeleteAtIsNull() {
+    private static Specification<User> byDeletedAtIsNull() {
         return  (root, _, cb) ->
-                cb.isNull(root.get("deleteAt"));
+                cb.isNull(root.get("deletedAt"));
     }
 }

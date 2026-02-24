@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,6 +27,7 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public void deleteDisabledUsersOlderThan180Days() {
         OffsetDateTime thresholdDate = OffsetDateTime.now().minusDays(180);
         List<User> users = userRepository.findByIsEnabledFalseAndUpdatedAtBefore(thresholdDate);
@@ -34,35 +36,16 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
     }
 
     @Override
-    public void deleteUsersWithDeleteAtOlderThan180Days() {
+    @Transactional(readOnly = true)
+    public void deleteUsersWithDeletedAtOlderThan180Days() {
         OffsetDateTime thresholdDate = OffsetDateTime.now().minusDays(180);
         List<User> users = userRepository.findByDeletedAtBefore(thresholdDate);
 
         deleteUsers(users, thresholdDate);
     }
 
-    private void deleteUsers(List<User> users, OffsetDateTime thresholdDate) {
-        if (!users.isEmpty()) {
-            AtomicInteger count = new AtomicInteger();
-            users.forEach(user -> {
-                try {
-                    userSchedulerHelper.deleteSingleUser(user);
-                    count.incrementAndGet();
-                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock | userId={}", user.getId());
-                }
-            });
-            if(count.get() > 0) {
-                logger.info("[USER SCHEDULER] Users deleted | threshold={} count={}", thresholdDate, count.get());
-                return;
-            }
-            logger.warn("[USER SCHEDULER] Users found but none deleted due to concurrency");
-        }else{
-            logger.debug("[USER SCHEDULER] No Users to delete");
-        }
-    }
-
     @Override
+    @Transactional(readOnly = true)
     public void unlockUsersWithExpiredLock() {
         List<User> users = userRepository.findByIsAccountNonLockedFalseAndLockTimeBefore(OffsetDateTime.now());
 
@@ -83,6 +66,27 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
             logger.warn("[USER SCHEDULER] Users found but none updated due to concurrency");
         }else{
             logger.debug("[USER SCHEDULER] No Users to updated");
+        }
+    }
+
+    private void deleteUsers(List<User> users, OffsetDateTime thresholdDate) {
+        if (!users.isEmpty()) {
+            AtomicInteger count = new AtomicInteger();
+            users.forEach(user -> {
+                try {
+                    userSchedulerHelper.deleteSingleUser(user);
+                    count.incrementAndGet();
+                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
+                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock | userId={}", user.getId());
+                }
+            });
+            if(count.get() > 0) {
+                logger.info("[USER SCHEDULER] Users deleted | threshold={} count={}", thresholdDate, count.get());
+                return;
+            }
+            logger.warn("[USER SCHEDULER] Users found but none deleted due to concurrency");
+        }else{
+            logger.debug("[USER SCHEDULER] No Users to delete");
         }
     }
 }

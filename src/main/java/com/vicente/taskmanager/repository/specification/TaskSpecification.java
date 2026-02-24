@@ -13,7 +13,7 @@ public final class TaskSpecification {
 
     public static Specification<Task> filter(TaskFilterDTO taskFilter) {
         return Specification
-                .where(byDeleteAtIsNull())
+                .where(byDeletedAtIsNull())
                 .and(belongsToUser(taskFilter.userId()))
                 .and(byStatus(taskFilter.status()))
                 .and(byDueDate(taskFilter.dueDate()));
@@ -46,8 +46,8 @@ public final class TaskSpecification {
                 cb.equal(root.get("user").get("id"), userId);
     }
 
-    private static Specification<Task> byDeleteAtIsNull() {
+    private static Specification<Task> byDeletedAtIsNull() {
         return (root, _, cb) ->
-                cb.isNull(root.get("user").get("deleteAt"));
+                cb.isNull(root.get("user").get("deletedAt"));
     }
 }

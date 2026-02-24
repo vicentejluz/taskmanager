@@ -29,7 +29,7 @@ public class UserScheduler {
 
         try {
             userSchedulerService.deleteDisabledUsersOlderThan180Days();
-            userSchedulerService.deleteUsersWithDeleteAtOlderThan180Days();
+            userSchedulerService.deleteUsersWithDeletedAtOlderThan180Days();
             userSchedulerService.unlockUsersWithExpiredLock();
 
             long duration = System.currentTimeMillis() - start;
