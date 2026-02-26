@@ -4,6 +4,7 @@ import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.*;
 import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import org.springframework.data.domain.Page;
 
 public final class UserMapper {
@@ -42,10 +43,19 @@ public final class UserMapper {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
+                user.getAccountStatus(),
                 user.isEnabled(),
                 user.isAccountNonLocked(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
+    }
+
+    public static UserEnabledResponseDTO toUserEnabledDTO(User user) {
+        return  new UserEnabledResponseDTO(
+                user.getId(),
+                user.getAccountStatus(),
+                user.isEnabled()
+        );
     }
 
     public static PageResponseDTO<UserAdminResponseDTO> toPageDTO(Page<UserAdminResponseDTO> page) {
@@ -65,6 +75,11 @@ public final class UserMapper {
             user.setName(userUpdateRequestDTO.name());
         if(userUpdateRequestDTO.email() != null && !userUpdateRequestDTO.email().isBlank())
             user.setEmail(userUpdateRequestDTO.email());
+    }
+
+    public static void mergeExistEntity(User user, RegisterUserRequestDTO registerUserRequestDTO) {
+        user.setName(registerUserRequestDTO.name());
+        user.setPassword(registerUserRequestDTO.password());
     }
 
 }

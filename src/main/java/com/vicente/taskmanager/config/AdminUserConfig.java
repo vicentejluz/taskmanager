@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.config;
 
 import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import com.vicente.taskmanager.model.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import org.jspecify.annotations.NonNull;
@@ -46,7 +47,7 @@ public class AdminUserConfig implements CommandLineRunner {
                     admin.setName("System");
                     admin.setEmail("system@admin.com");
                     admin.setPassword(passwordEncoder.encode(adminPassword));
-                    admin.setEnabled(true);
+                    admin.setAccountStatus(AccountStatus.ACTIVE);
                     admin.setAccountNonLocked(true);
                     admin.getRoles().add(UserRole.USER);
                     admin.getRoles().add(UserRole.ADMIN);

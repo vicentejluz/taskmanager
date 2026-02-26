@@ -2,17 +2,12 @@ package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
-import com.vicente.taskmanager.dto.response.PageResponseDTO;
-import com.vicente.taskmanager.dto.response.UserAdminResponseDTO;
-import com.vicente.taskmanager.dto.response.UserResponseDTO;
-import com.vicente.taskmanager.dto.response.UserUpdateResponseDTO;
-import com.vicente.taskmanager.exception.EmailAlreadyExistsException;
-import com.vicente.taskmanager.exception.InvalidOldPasswordException;
-import com.vicente.taskmanager.exception.UserNotFoundException;
+import com.vicente.taskmanager.dto.response.*;
+import com.vicente.taskmanager.exception.*;
 
-import com.vicente.taskmanager.exception.UserOperationNotAllowedException;
 import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import com.vicente.taskmanager.model.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.repository.specification.UserSpecification;
@@ -28,6 +23,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 @Service
@@ -79,8 +76,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserAdminResponseDTO> find(UserFilterDTO filter, Pageable pageable) {
-        logger.info("Starting find users with name {} and isEnabled {} and isAccountNonLocked {}",
-                filter.name(), filter.enabled(), filter.accountNonLocked());
+        logger.info("Starting find users with name {} and accountStatus {} and isAccountNonLocked {}",
+                filter.name(), filter.accountStatus(), filter.accountNonLocked());
 
         logUserFindStrategy(filter);
 
@@ -145,19 +142,35 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updateUserEnabled(Long id, boolean enabled) {
-        logger.info("Starting updateUserEnabled user | id={}", id);
+    public UserEnabledResponseDTO toggleUserEnabled(Long id) {
+        logger.info("Starting toggleUserEnabled | id={}", id);
         User user = getUser(id);
 
-        if(!enabled) validateCanDisable(user);
-
-        if(user.isEnabled() != enabled) {
-            user.setEnabled(enabled);
-            logger.info("User enabled successfully | id={} isEnable={}", id,  user.isEnabled());
-            userRepository.save(user);
-        }else{
-            logger.debug("User already in desired state | id={} enabled={}", id, enabled);
+        if(user.getDeletedAt() != null){
+            logger.debug("Cannot toggle a deleted user");
+            throw new InvalidUserStateTransitionException("Cannot toggle a deleted user");
         }
+
+        if(user.getAccountStatus() != AccountStatus.ACTIVE && user.getAccountStatus() != AccountStatus.DISABLED_BY_ADMIN){
+            logger.debug("Cannot toggle user with status | status={}", user.getAccountStatus());
+            throw new InvalidUserStateTransitionException(
+                    "Invalid state transition from status: " + user.getAccountStatus());
+        }
+
+        if(user.isEnabled()) {
+            validateCanDisable(user);
+            logger.info("User disabled by admin | id={}", id);
+            user.setAccountStatus(AccountStatus.DISABLED_BY_ADMIN);
+        }else {
+            logger.info("User reactivated | id={}", id);
+            user.setAccountStatus(AccountStatus.ACTIVE);
+        }
+
+        userRepository.save(user);
+
+        logger.info("toggleUserEnabled finished | id={} enabled={}", id,  user.isEnabled());
+
+        return UserMapper.toUserEnabledDTO(user);
     }
 
     @Override
@@ -167,8 +180,7 @@ public class UserServiceImpl implements UserService {
 
         validateCanDisable(user);
 
-        user.setEnabled(false);
-        user.setDeletedAt();
+        user.setDeletedAt(OffsetDateTime.now());
 
         userRepository.save(user);
 
@@ -193,23 +205,23 @@ public class UserServiceImpl implements UserService {
 
     private void logUserFindStrategy(UserFilterDTO filter) {
         boolean hasName = filter.name() != null && !filter.name().isBlank();
-        if(hasName && filter.enabled() != null && filter.accountNonLocked() != null) {
-            logger.debug("Find strategy: name + enabled + accountNonLocked | name={} enabled={} accountNonLocked={}",
-                    filter.name(), filter.enabled(), filter.accountNonLocked());
-        } else if(hasName && filter.enabled() != null) {
-            logger.debug("Find strategy: name + enabled | name={} enabled={}", filter.name(), filter.enabled());
+        if(hasName && filter.accountStatus() != null && filter.accountNonLocked() != null) {
+            logger.debug("Find strategy: name + accountStatus + accountNonLocked | name={} accountStatus={} accountNonLocked={}",
+                    filter.name(), filter.accountStatus(), filter.accountNonLocked());
+        } else if(hasName && filter.accountStatus() != null) {
+            logger.debug("Find strategy: name + accountStatus | name={} accountStatus={}", filter.name(), filter.accountStatus());
         } else if(hasName && filter.accountNonLocked() != null) {
             logger.debug("Find strategy: name + accountNonLocked | name={} accountNonLocked={}",
                     filter.name(), filter.accountNonLocked());
         } else if(hasName) {
             logger.debug("Find strategy: name | name={}", filter.name());
-        } else if(filter.enabled() != null && filter.accountNonLocked() != null) {
-            logger.debug("Find strategy: enabled + accountNonLocked | enabled={} accountNonLocked={}",
-                    filter.enabled(), filter.accountNonLocked());
-        }else if(filter.enabled() != null){
-            logger.debug("Find strategy: enabled | enabled={}", filter.enabled());
+        } else if(filter.accountStatus() != null && filter.accountNonLocked() != null) {
+            logger.debug("Find strategy: accountStatus + accountNonLocked | accountStatus={} accountNonLocked={}",
+                    filter.accountStatus(), filter.accountNonLocked());
+        }else if(filter.accountStatus() != null){
+            logger.debug("Find strategy: accountStatus | accountStatus={}", filter.accountStatus());
         }else if(filter.accountNonLocked() != null){
-            logger.debug("Find strategy: accountNonLocked | enabled={}", filter.accountNonLocked());
+            logger.debug("Find strategy: accountNonLocked | accountNonLocked={}", filter.accountNonLocked());
         }else{
             logger.debug("Find strategy: all users");
         }

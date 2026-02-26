@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.model.entity;
 
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import com.vicente.taskmanager.model.enums.UserRole;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcType;
@@ -33,8 +34,10 @@ public class User extends AbstractEntity implements UserDetails {
     @Column(name = "role", nullable = false)
     private Set<UserRole> roles = new HashSet<>();
 
-    @Column(name = "is_enabled", nullable = false)
-    private boolean isEnabled;
+    @Enumerated(value =  EnumType.STRING)
+    @JdbcType(value = PostgreSQLEnumJdbcType.class)
+    @Column(name = "account_status", nullable = false)
+    private AccountStatus accountStatus;
 
     @Column(name = "is_account_non_locked", nullable = false)
     private boolean isAccountNonLocked;
@@ -55,7 +58,6 @@ public class User extends AbstractEntity implements UserDetails {
         this.name = name;
         this.email = email == null ? null : email.toLowerCase().trim();
         this.password = password;
-        this.isEnabled = true;
         this.isAccountNonLocked = true;
         this.failedAttempts = 0;
     }
@@ -101,11 +103,16 @@ public class User extends AbstractEntity implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return isEnabled;
+        return this.accountStatus ==  AccountStatus.ACTIVE
+                && this.deletedAt == null;
     }
 
-    public void setEnabled(boolean enabled) {
-        isEnabled = enabled;
+    public AccountStatus getAccountStatus() {
+        return accountStatus;
+    }
+
+    public void setAccountStatus(AccountStatus accountStatus) {
+        this.accountStatus = accountStatus;
     }
 
     @Override
@@ -139,8 +146,8 @@ public class User extends AbstractEntity implements UserDetails {
         return deletedAt;
     }
 
-    public void setDeletedAt() {
-        this.deletedAt = OffsetDateTime.now();
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 
     @Override

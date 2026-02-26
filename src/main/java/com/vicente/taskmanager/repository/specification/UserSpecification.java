@@ -2,6 +2,7 @@ package com.vicente.taskmanager.repository.specification;
 
 import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Objects;
@@ -13,7 +14,7 @@ public final class UserSpecification {
         return Specification
                 .where(byDeletedAtIsNull())
                 .and(byName(userFilter.name()))
-                .and(byEnabled(userFilter.enabled()))
+                .and(byAccountStatus(userFilter.accountStatus()))
                 .and(byAccountNonLocked(userFilter.accountNonLocked()));
     }
 
@@ -28,10 +29,11 @@ public final class UserSpecification {
         };
     }
 
-    private static Specification<User> byEnabled(Boolean enabled) {
+    private static Specification<User> byAccountStatus(String status) {
         return  (root, _, cb) -> {
-            if(Objects.nonNull(enabled)) {
-                return cb.equal(root.get("isEnabled"), enabled);
+            if(Objects.nonNull(status) && !status.isBlank()) {
+                AccountStatus accountStatus = AccountStatus.convert(status.trim());
+                return cb.equal(root.get("accountStatus"), accountStatus);
             }
 
             return null;

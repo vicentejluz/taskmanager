@@ -132,6 +132,18 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).body(standardError);
     }
 
+    @ExceptionHandler(InvalidAccountStatusException.class)
+    public ResponseEntity<StandardError> invalidAccountStatus(InvalidAccountStatusException e, HttpServletRequest request) {
+        String error = "Invalid Account Status Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<StandardError> methodArgumentTypeMismatch(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
         String error = "Method Argument Type Mismatch Error";
@@ -162,7 +174,7 @@ public class ResourceExceptionHandler {
 
         Exemplo comum:
             - O cliente envia uma data inválida no JSON (ex: "2025-02-31")
-            - O Jackson tenta converter essa String para LocalDate
+            - O Jackson tenta convert essa String para LocalDate
             - O parse falha e gera um DateTimeParseException
             - Essa exceção é encapsulada dentro de outras exceções
             - No final, o Spring lança apenas HttpMessageNotReadableException
@@ -345,6 +357,34 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).header(
                 "Retry-After", String.valueOf(Math.max(0, secondsToWait))).body(err);
     }
+
+    @ExceptionHandler(VerificationTokenException.class)
+    public ResponseEntity<StandardError> verificationToken(VerificationTokenException e, HttpServletRequest request) {
+        String error = "Verification Token Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+
+        logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(InvalidUserStateTransitionException.class)
+    public ResponseEntity<StandardError> invalidUserStateTransition(InvalidUserStateTransitionException e,
+                                                                    HttpServletRequest request) {
+        String error = "Invalid User State Transition Error";
+        HttpStatus status = HttpStatus.CONFLICT;
+
+        logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
 
     @ExceptionHandler(AccountDeletedException.class)
     public ResponseEntity<StandardError> accountDeleted(AccountDeletedException e, HttpServletRequest request) {

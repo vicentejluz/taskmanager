@@ -2,12 +2,8 @@ package com.vicente.taskmanager.controller;
 
 import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
-import com.vicente.taskmanager.dto.request.UpdateUserEnabledRequest;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
-import com.vicente.taskmanager.dto.response.PageResponseDTO;
-import com.vicente.taskmanager.dto.response.UserAdminResponseDTO;
-import com.vicente.taskmanager.dto.response.UserResponseDTO;
-import com.vicente.taskmanager.dto.response.UserUpdateResponseDTO;
+import com.vicente.taskmanager.dto.response.*;
 import com.vicente.taskmanager.exception.error.StandardError;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.service.UserService;
@@ -197,8 +193,12 @@ public class UserController {
     )
     @ApiResponses(value = {
             @ApiResponse(
-                    responseCode = "204",
-                    description = "User status updated successfully"
+                    responseCode = "200",
+                    description = "User status updated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = UserEnabledResponseDTO.class)
+                    )
             ),
             @ApiResponse(
                     responseCode = "400",
@@ -234,12 +234,9 @@ public class UserController {
             )
     })
     @PatchMapping("/admin/users/{id}/enabled")
-    public ResponseEntity<Void> updateUserEnabled(
-            @PathVariable Long id,
-            @Valid @RequestBody() UpdateUserEnabledRequest updateUserEnabledRequest
-    ) {
-        userService.updateUserEnabled(id, updateUserEnabledRequest.enabled());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<UserEnabledResponseDTO> toggleUserEnabled(@PathVariable Long id) {
+        UserEnabledResponseDTO userEnabledResponseDTO = userService.toggleUserEnabled(id);
+        return ResponseEntity.ok().body(userEnabledResponseDTO);
     }
 
     @Operation(
@@ -358,7 +355,7 @@ public class UserController {
     
                     All filters are optional:
                     - name: Performs a partial match (case-insensitive) on the user's name.
-                    - enabled: Filters users by enabled status.
+                    - accountStatus: Filters users by account status.
                     - locked-account: Filters users by account lock status.
     
                     If no filters are provided, all users are returned paginated.
@@ -404,8 +401,8 @@ public class UserController {
     public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(
             @ParameterObject UserFilterDTO filter,
             @ParameterObject Pageable pageable) {
-        logger.debug("GET /api/v1/admin/users find called | filters: name={} enabled={} accountNonLocked={}",
-                filter.name(), filter.enabled(), filter.accountNonLocked());
+        logger.debug("GET /api/v1/admin/users find called | filters: name={} accountStatus={} accountNonLocked={}",
+                filter.name(), filter.accountStatus(), filter.accountNonLocked());
         PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.find(filter, pageable);
         if (pageResponseDTO.content().isEmpty()) {
             logger.debug("GET /api/v1/admin/users returned empty result");

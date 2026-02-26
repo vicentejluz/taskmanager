@@ -7,6 +7,7 @@ import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.exception.error.LockedError;
 import com.vicente.taskmanager.exception.error.StandardError;
 import com.vicente.taskmanager.service.AuthService;
+import com.vicente.taskmanager.service.VerificationTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,23 +18,23 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.util.Map;
 
 @Tag(name = "Authentication", description = "Authentication endpoints")
 @RestController
 @RequestMapping(value = "/api/v1/auth")
 public class AuthController {
     private final AuthService authService;
+    private final VerificationTokenService verificationTokenService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, VerificationTokenService verificationTokenService) {
         this.authService = authService;
+        this.verificationTokenService = verificationTokenService;
     }
 
     @Operation(
@@ -127,10 +128,49 @@ public class AuthController {
             )
     })
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO)
-    {
+    public ResponseEntity<LoginResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
         logger.debug("POST /api/v1/login login called");
         LoginResponseDTO token = authService.login(loginRequestDTO);
         return ResponseEntity.ok(token);
+    }
+
+    @Operation(
+            summary = "Verify email address",
+            description = "Validates the email verification token and activates the user account."
+    )
+    @ApiResponses(value = {
+
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Email successfully verified",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(example = "{\"message\": \"Email successfully verified\"}")
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid or expired token",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Token not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    @GetMapping("/verify-email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam("token") String token) {
+        logger.debug("GET /api/v1/verify-email verify email called");
+        verificationTokenService.consumeToken(token);
+        return ResponseEntity.ok(Map.of("message", "Email successfully verified"));
     }
 }

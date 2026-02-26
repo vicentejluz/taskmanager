@@ -57,9 +57,36 @@ services:
     networks:
       - elk-network
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: always
+    ports:
+      - "8025:8025" # 🌐 Web GUI
+      - "1025:1025" # 📮 SMTP
+    volumes:
+      - mailpit-data:/data  # 💾 Persistent storage for messages
+      - ./mailpit/certs:/certs
+    environment:
+      MP_SMTP_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}        # 👤 SMTP login credentials
+      MP_UI_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}          # 🔑 Web UI login credentials
+#      MAIL_FROM_ADDRESS: taskmanager@mailpit.com
+      MP_SMTP_TLS_CERT: /certs/cert.pem
+      MP_SMTP_TLS_KEY: /certs/key.pem
+      MP_DATABASE: /data
+      MP_MAX_MESSAGES: 3000                # 💌 Max number of stored messages
+      MP_VERBOSE: true                      # 🪵 Enable verbose logging
+    healthcheck:
+      test: [ "CMD", "/mailpit", "readyz" ]
+      interval: 15s
+      start_period: 10s
+      timeout: 30s
+      retries: 3
+
 volumes:
   pg-data:
   es_data:
+  mailpit-data:
 
 networks:
   elk-network:

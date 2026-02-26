@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.dto.response;
 
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.OffsetDateTime;
@@ -27,6 +28,12 @@ public record UserAdminResponseDTO(
                 example = "john.doe@email.com"
         )
         String email,
+
+        @Schema(
+                description = "Current account status of the user",
+                example = "ACTIVE"
+        )
+        AccountStatus accountStatus,
 
         @Schema(
                 description = "Indicates whether the user account is enabled",

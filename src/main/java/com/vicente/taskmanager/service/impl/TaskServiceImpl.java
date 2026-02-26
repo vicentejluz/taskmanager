@@ -166,7 +166,7 @@ public class TaskServiceImpl implements TaskService {
         logTaskFindStrategy(status, dueDate);
 
         Specification<Task> spec = TaskSpecification.filter(new TaskFilterDTO(userId,
-                TaskStatus.converter(status), dueDate));
+                TaskStatus.convert(status), dueDate));
         Page<TaskResponseDTO> tasks = findAll(spec, pageable);
 
         logger.info("Find tasks success | totalElements={} totalPages={} page={} size={}", tasks.getTotalElements(),

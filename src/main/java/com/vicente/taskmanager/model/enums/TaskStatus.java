@@ -20,7 +20,7 @@ public enum TaskStatus {
         return value;
     }
 
-    public static TaskStatus converter(String status) {
+    public static TaskStatus convert(String status) {
         try {
             if(Objects.nonNull(status) && !status.isBlank())
                 return TaskStatus.valueOf(status.toUpperCase().trim());

@@ -78,6 +78,8 @@ public class WebSecurityConfig {
                                 .hasAnyRole(UserRole.USER.name(), UserRole.ADMIN.name())
                                 .requestMatchers(HttpMethod.DELETE, "/api/v1/users/me/delete")
                                 .hasRole(UserRole.USER.name())
+                                .requestMatchers(HttpMethod.GET, "/api/v1/auth/verify-email")
+                                .permitAll()
                                 .requestMatchers(ADMIN)
                                 .hasRole(UserRole.ADMIN.name())
                                 .anyRequest().authenticated()
