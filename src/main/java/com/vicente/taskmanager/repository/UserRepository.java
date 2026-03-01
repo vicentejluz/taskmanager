@@ -16,5 +16,5 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findByEmail(String username);
     List<User> findByAccountStatusAndUpdatedAtBefore(AccountStatus status, OffsetDateTime date);
     List<User> findByDeletedAtBefore(OffsetDateTime date);
-    List<User> findByIsAccountNonLockedFalseAndLockTimeBefore(OffsetDateTime date);
+    List<User> findByLockUntilBefore(OffsetDateTime date);
 }

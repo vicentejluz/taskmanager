@@ -167,7 +167,7 @@ public class TaskServiceImpl implements TaskService {
 
         Specification<Task> spec = TaskSpecification.filter(new TaskFilterDTO(userId,
                 TaskStatus.convert(status), dueDate));
-        Page<TaskResponseDTO> tasks = findAll(spec, pageable);
+        Page<Task> tasks = taskRepository.findAll(spec, pageable);
 
         logger.info("Find tasks success | totalElements={} totalPages={} page={} size={}", tasks.getTotalElements(),
                 tasks.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
@@ -203,10 +203,6 @@ public class TaskServiceImpl implements TaskService {
     private @NonNull Task findByIdAndUserId(Long id, Long userId) {
         return taskRepository.findByIdAndUserId(id, userId).orElseThrow(() ->
                 new TaskNotFoundException("Task not found or you do not have permission to access it"));
-    }
-
-    private Page<TaskResponseDTO> findAll(Specification<Task> spec, Pageable pageable){
-        return taskRepository.findAll(spec, pageable).map(TaskMapper::toDTO);
     }
 
     private void logTaskStatusChange(Task task, Long userId, TaskStatus previousStatus) {

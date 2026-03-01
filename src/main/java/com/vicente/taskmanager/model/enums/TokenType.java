@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.model.enums;
 
 public enum TokenType {
-    EMAIL_VERIFICATION(1L),
-    PASSWORD_RESET(10L);
+    EMAIL_VERIFICATION(60L),
+    PASSWORD_RESET(15L);
 
     private final long expirationMinutes;
 

@@ -4,8 +4,6 @@ import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.*;
 import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
-import org.springframework.data.domain.Page;
 
 public final class UserMapper {
     public static User toEntity(RegisterUserRequestDTO request) {
@@ -38,35 +36,11 @@ public final class UserMapper {
                 user.getUpdatedAt());
     }
 
-    public static UserAdminResponseDTO toUserAdminDTO(User user) {
-        return  new UserAdminResponseDTO(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getAccountStatus(),
-                user.isEnabled(),
-                user.isAccountNonLocked(),
-                user.getCreatedAt(),
-                user.getUpdatedAt());
-    }
-
     public static UserEnabledResponseDTO toUserEnabledDTO(User user) {
         return  new UserEnabledResponseDTO(
                 user.getId(),
                 user.getAccountStatus(),
                 user.isEnabled()
-        );
-    }
-
-    public static PageResponseDTO<UserAdminResponseDTO> toPageDTO(Page<UserAdminResponseDTO> page) {
-        return new PageResponseDTO<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalPages(),
-                page.getTotalElements(),
-                page.isFirst(),
-                page.isLast()
         );
     }
 

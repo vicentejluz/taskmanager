@@ -21,7 +21,7 @@ public class AccountStatusUserDetailsChecker implements UserDetailsChecker {
 
     public void check(UserDetails user) {
         if (!user.isAccountNonLocked()) {
-            OffsetDateTime lockedUntil = ((User) user).getLockTime();
+            OffsetDateTime lockedUntil = ((User) user).getLockUntil();
 
             throw new AccountLockedException(messages.getMessage(
                     "AccountStatusUserDetailsChecker.locked", "User account is locked"), lockedUntil);

@@ -15,12 +15,6 @@ public record UserFilterDTO(
                 description = "Filters users by account status. Possible values: PENDING_VERIFICATION, DISABLED_BY_ADMIN, ACTIVE",
                 example = "ACTIVE"
         )
-        String accountStatus,
-
-        @Schema(
-                description = "Filters users by account lock status (true = account not locked, false = locked)",
-                example = "true"
-        )
-        Boolean accountNonLocked
+        String accountStatus
 
 ) {}

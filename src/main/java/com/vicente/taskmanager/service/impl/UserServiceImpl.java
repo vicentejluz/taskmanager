@@ -5,6 +5,7 @@ import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.*;
 import com.vicente.taskmanager.exception.*;
 
+import com.vicente.taskmanager.mapper.AdminMapper;
 import com.vicente.taskmanager.mapper.UserMapper;
 import com.vicente.taskmanager.model.entity.User;
 import com.vicente.taskmanager.model.enums.AccountStatus;
@@ -56,7 +57,7 @@ public class UserServiceImpl implements UserService {
         User user = getUser(id);
 
         logger.info("Finished findById user | id={}", id);
-        return UserMapper.toUserAdminDTO(user);
+        return AdminMapper.toDTO(user);
     }
 
     @Override
@@ -70,24 +71,23 @@ public class UserServiceImpl implements UserService {
         });
 
         logger.info("Finished findByEmail user | email={}", email);
-        return UserMapper.toUserAdminDTO(user);
+        return AdminMapper.toDTO(user);
     }
 
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserAdminResponseDTO> find(UserFilterDTO filter, Pageable pageable) {
-        logger.info("Starting find users with name {} and accountStatus {} and isAccountNonLocked {}",
-                filter.name(), filter.accountStatus(), filter.accountNonLocked());
+        logger.info("Starting find users with name {} and accountStatus {}",
+                filter.name(), filter.accountStatus());
 
         logUserFindStrategy(filter);
 
         Specification<User> spec = UserSpecification.filter(filter);
-        Page<UserAdminResponseDTO> users = userRepository.findAll(spec, pageable)
-                .map(UserMapper::toUserAdminDTO);
+        Page<User> users = userRepository.findAll(spec, pageable);
 
         logger.info("Find users success | totalElements={} totalPages={} page={} size={}", users.getTotalElements(),
                 users.getTotalPages(), pageable.getPageNumber(), pageable.getPageSize());
-        return UserMapper.toPageDTO(users);
+        return AdminMapper.toPageDTO(users);
     }
 
     @Override
@@ -205,23 +205,12 @@ public class UserServiceImpl implements UserService {
 
     private void logUserFindStrategy(UserFilterDTO filter) {
         boolean hasName = filter.name() != null && !filter.name().isBlank();
-        if(hasName && filter.accountStatus() != null && filter.accountNonLocked() != null) {
-            logger.debug("Find strategy: name + accountStatus + accountNonLocked | name={} accountStatus={} accountNonLocked={}",
-                    filter.name(), filter.accountStatus(), filter.accountNonLocked());
-        } else if(hasName && filter.accountStatus() != null) {
+        if(hasName && filter.accountStatus() != null) {
             logger.debug("Find strategy: name + accountStatus | name={} accountStatus={}", filter.name(), filter.accountStatus());
-        } else if(hasName && filter.accountNonLocked() != null) {
-            logger.debug("Find strategy: name + accountNonLocked | name={} accountNonLocked={}",
-                    filter.name(), filter.accountNonLocked());
         } else if(hasName) {
             logger.debug("Find strategy: name | name={}", filter.name());
-        } else if(filter.accountStatus() != null && filter.accountNonLocked() != null) {
-            logger.debug("Find strategy: accountStatus + accountNonLocked | accountStatus={} accountNonLocked={}",
-                    filter.accountStatus(), filter.accountNonLocked());
-        }else if(filter.accountStatus() != null){
+        } else if(filter.accountStatus() != null){
             logger.debug("Find strategy: accountStatus | accountStatus={}", filter.accountStatus());
-        }else if(filter.accountNonLocked() != null){
-            logger.debug("Find strategy: accountNonLocked | accountNonLocked={}", filter.accountNonLocked());
         }else{
             logger.debug("Find strategy: all users");
         }

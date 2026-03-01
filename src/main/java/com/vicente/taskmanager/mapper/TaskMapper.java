@@ -26,15 +26,16 @@ public final class TaskMapper {
         );
     }
 
-    public static PageResponseDTO<TaskResponseDTO> toPageDTO(Page<TaskResponseDTO> page) {
+    public static PageResponseDTO<TaskResponseDTO> toPageDTO(Page<Task> page) {
+        Page<TaskResponseDTO> pageDTO = page.map(TaskMapper::toDTO);
         return new PageResponseDTO<>(
-                page.getContent(),
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalPages(),
-                page.getTotalElements(),
-                page.isFirst(),
-                page.isLast()
+                pageDTO.getContent(),
+                pageDTO.getNumber(),
+                pageDTO.getSize(),
+                pageDTO.getTotalPages(),
+                pageDTO.getTotalElements(),
+                pageDTO.isFirst(),
+                pageDTO.isLast()
         );
     }
 

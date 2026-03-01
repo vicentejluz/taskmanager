@@ -39,14 +39,11 @@ public class User extends AbstractEntity implements UserDetails {
     @Column(name = "account_status", nullable = false)
     private AccountStatus accountStatus;
 
-    @Column(name = "is_account_non_locked", nullable = false)
-    private boolean isAccountNonLocked;
-
     @Column(name = "failed_attempts", nullable = false)
     private Integer failedAttempts;
 
-    @Column(name = "lock_time")
-    private OffsetDateTime lockTime;
+    @Column(name = "lock_until")
+    private OffsetDateTime lockUntil;
 
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
@@ -58,7 +55,6 @@ public class User extends AbstractEntity implements UserDetails {
         this.name = name;
         this.email = email == null ? null : email.toLowerCase().trim();
         this.password = password;
-        this.isAccountNonLocked = true;
         this.failedAttempts = 0;
     }
 
@@ -115,31 +111,19 @@ public class User extends AbstractEntity implements UserDetails {
         this.accountStatus = accountStatus;
     }
 
-    @Override
-    public boolean isAccountNonLocked() {
-        return this.isAccountNonLocked;
+    public OffsetDateTime getLockUntil() {
+        return lockUntil;
     }
 
-    public void setAccountNonLocked(boolean accountNonLocked) {
-        isAccountNonLocked = accountNonLocked;
+    @Override
+    public boolean isAccountNonLocked() {
+        return this.lockUntil == null || this.lockUntil.isBefore(OffsetDateTime.now());
     }
 
     @Override
     @NonNull
     public String getUsername() {
         return email;
-    }
-
-    public Integer getFailedAttempts() {
-        return failedAttempts;
-    }
-
-    public OffsetDateTime getLockTime() {
-        return lockTime;
-    }
-
-    public void setLockTime(OffsetDateTime lockTime) {
-        this.lockTime = lockTime;
     }
 
     public OffsetDateTime getDeletedAt() {
@@ -163,8 +147,7 @@ public class User extends AbstractEntity implements UserDetails {
     public void registerFailedLoginAttempt(long lockMinutes, int maxAttempts) {
         this.incrementFailedAttempts();
         if (this.failedAttempts >= maxAttempts) {
-            this.isAccountNonLocked = false;
-            this.lockTime = this.calculateLockExpiration(lockMinutes);
+            this.lockUntil = this.calculateLockExpiration(lockMinutes);
         }
     }
 
@@ -174,13 +157,12 @@ public class User extends AbstractEntity implements UserDetails {
 
     public void unlock() {
         this.resetFailedAttempts();
-        this.setLockTime(null);
-        this.setAccountNonLocked(true);
+        this.lockUntil = null;
     }
 
     public boolean isLockExpired() {
-        return this.lockTime != null &&
-                this.lockTime.isBefore(OffsetDateTime.now());
+        return this.lockUntil != null &&
+                this.lockUntil.isBefore(OffsetDateTime.now());
     }
 
     private void incrementFailedAttempts() {

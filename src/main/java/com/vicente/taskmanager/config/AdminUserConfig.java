@@ -48,7 +48,6 @@ public class AdminUserConfig implements CommandLineRunner {
                     admin.setEmail("system@admin.com");
                     admin.setPassword(passwordEncoder.encode(adminPassword));
                     admin.setAccountStatus(AccountStatus.ACTIVE);
-                    admin.setAccountNonLocked(true);
                     admin.getRoles().add(UserRole.USER);
                     admin.getRoles().add(UserRole.ADMIN);
 

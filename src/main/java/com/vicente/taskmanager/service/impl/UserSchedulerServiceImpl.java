@@ -50,7 +50,7 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
     @Override
     @Transactional(readOnly = true)
     public void unlockUsersWithExpiredLock() {
-        List<User> users = userRepository.findByIsAccountNonLockedFalseAndLockTimeBefore(OffsetDateTime.now());
+        List<User> users = userRepository.findByLockUntilBefore(OffsetDateTime.now());
 
         if (!users.isEmpty()) {
             AtomicInteger count = new AtomicInteger();
@@ -59,7 +59,8 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
                     userSchedulerHelper.unlockSingleUser(user);
                     count.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock | userId={}", user.getId());
+                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock - unlockUsersWithExpiredLock" +
+                            " | userId={}", user.getId());
                 }
             });
             if(count.get() > 0) {
@@ -68,7 +69,7 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
             }
             logger.warn("[USER SCHEDULER] Users found but none updated due to concurrency");
         }else{
-            logger.debug("[USER SCHEDULER] No Users to updated");
+            logger.debug("[USER SCHEDULER] No users to update");
         }
     }
 
@@ -80,7 +81,8 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
                     userSchedulerHelper.deleteSingleUser(user);
                     count.incrementAndGet();
                 } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock | userId={}", user.getId());
+                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock - deleteUsers" +
+                            " | userId={}", user.getId());
                 }
             });
             if(count.get() > 0) {

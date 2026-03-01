@@ -14,8 +14,7 @@ public final class UserSpecification {
         return Specification
                 .where(byDeletedAtIsNull())
                 .and(byName(userFilter.name()))
-                .and(byAccountStatus(userFilter.accountStatus()))
-                .and(byAccountNonLocked(userFilter.accountNonLocked()));
+                .and(byAccountStatus(userFilter.accountStatus()));
     }
 
     private static Specification<User> byName(String name) {
@@ -34,16 +33,6 @@ public final class UserSpecification {
             if(Objects.nonNull(status) && !status.isBlank()) {
                 AccountStatus accountStatus = AccountStatus.convert(status.trim());
                 return cb.equal(root.get("accountStatus"), accountStatus);
-            }
-
-            return null;
-        };
-    }
-
-    private static Specification<User> byAccountNonLocked(Boolean accountNonLocked) {
-        return  (root, _, cb) -> {
-            if(Objects.nonNull(accountNonLocked)) {
-                return cb.equal(root.get("isAccountNonLocked"), accountNonLocked);
             }
 
             return null;

@@ -356,7 +356,6 @@ public class UserController {
                     All filters are optional:
                     - name: Performs a partial match (case-insensitive) on the user's name.
                     - accountStatus: Filters users by account status.
-                    - locked-account: Filters users by account lock status.
     
                     If no filters are provided, all users are returned paginated.
     
@@ -401,8 +400,8 @@ public class UserController {
     public ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(
             @ParameterObject UserFilterDTO filter,
             @ParameterObject Pageable pageable) {
-        logger.debug("GET /api/v1/admin/users find called | filters: name={} accountStatus={} accountNonLocked={}",
-                filter.name(), filter.accountStatus(), filter.accountNonLocked());
+        logger.debug("GET /api/v1/admin/users find called | filters: name={} accountStatus={}",
+                filter.name(), filter.accountStatus());
         PageResponseDTO<UserAdminResponseDTO> pageResponseDTO = userService.find(filter, pageable);
         if (pageResponseDTO.content().isEmpty()) {
             logger.debug("GET /api/v1/admin/users returned empty result");
