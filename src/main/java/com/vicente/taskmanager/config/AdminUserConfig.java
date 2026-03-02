@@ -38,19 +38,17 @@ public class AdminUserConfig implements CommandLineRunner {
     @Transactional
     public void run(String @NonNull ... args) throws Exception {
         Optional<User> userAdmin = userRepository.findByEmail("system@admin.com");
-
-                userAdmin.ifPresentOrElse(
-                        admin -> logger.debug("[AdminUserConfig] Email '{}' is already registered.",
-                                admin.getEmail()),
+        userAdmin.ifPresentOrElse(
+                admin ->
+                        logger.debug("[AdminUserConfig] Email '{}' is already registered.", admin.getEmail()),
                 () -> {
-                    User admin = new User();
-                    admin.setName("System");
-                    admin.setEmail("system@admin.com");
-                    admin.setPassword(passwordEncoder.encode(adminPassword));
+                    String name = "System";
+                    String email = "system@admin.com";
+                    String password = passwordEncoder.encode(adminPassword);
+                    User admin = new User(name, email, password);
                     admin.setAccountStatus(AccountStatus.ACTIVE);
                     admin.getRoles().add(UserRole.USER);
                     admin.getRoles().add(UserRole.ADMIN);
-
                     userRepository.save(admin);
                     logger.debug("[AdminUserConfig] Admin registered successfully | adminId={}", admin.getId());
                 });

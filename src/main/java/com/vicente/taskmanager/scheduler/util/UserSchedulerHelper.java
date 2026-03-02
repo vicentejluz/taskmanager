@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.scheduler.util;
 
 import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.model.enums.AccountStatus;
 import com.vicente.taskmanager.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,13 @@ public class UserSchedulerHelper {
     public void unlockSingleUser(User user) {
         logger.debug("[USER SCHEDULER] Executing update single user | userId={}", user.getId());
         user.unlock();
+        userRepository.save(user);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void resolvePendingVerification(User user) {
+        logger.debug("[USER SCHEDULER] Executing resolve pending verification | userId={}", user.getId());
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
     }
 }

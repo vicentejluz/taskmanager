@@ -12,33 +12,43 @@ import org.springframework.stereotype.Component;
 public class UserScheduler {
     private final UserSchedulerService userSchedulerService;
     private static final Logger logger = LoggerFactory.getLogger(UserScheduler.class);
+    private static final String EVERY_DAY = "EVERY DAY";
+    private static final String EVERY_HOUR = "EVERY HOUR";
 
     public UserScheduler(UserSchedulerService userSchedulerService) {
         this.userSchedulerService = userSchedulerService;
     }
 
-    @Scheduled(cron = "${spring.user.scheduling.cron}")
-    public void runScheduled() {
-        execute();
+    @Scheduled(cron = "${spring.user.scheduling.cron.every.day}")
+    public void runScheduledEveryDay() {
+        execute(EVERY_DAY);
     }
 
-    private void execute() {
-        logger.info("[USER SCHEDULER] Running task maintenance");
+    @Scheduled(cron = "${spring.user.scheduling.cron.every.hour}")
+    public void runScheduledEveryHour() {
+        execute(EVERY_HOUR);
+    }
+
+    private void execute(String source) {
+        logger.info("[USER SCHEDULER {}] Running task maintenance",  source);
 
         long start = System.currentTimeMillis();
 
         try {
-            userSchedulerService.deleteDisabledUsersOlderThan180Days();
-            userSchedulerService.deleteUsersWithDeletedAtOlderThan180Days();
-            userSchedulerService.unlockUsersWithExpiredLock();
-
+            if(source.equals(EVERY_DAY)) {
+                userSchedulerService.deleteDisabledUsersOlderThan180Days();
+                userSchedulerService.deleteUsersWithDeletedAtOlderThan180Days();
+                userSchedulerService.unlockUsersWithExpiredLock();
+            }else{
+                userSchedulerService.deleteUsersWithPendingVerificationOlderThan72Hours();
+            }
             long duration = System.currentTimeMillis() - start;
-            logger.info("[USER SCHEDULER] User scheduler finished | duration={}ms", duration);
+            logger.info("[USER SCHEDULER {}] User scheduler finished | duration={}ms",source, duration);
 
         } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-            logger.warn("[USER SCHEDULER] User skipped due to concurrent | reason=optimistic_lock");
+            logger.warn("[USER SCHEDULER {}] User skipped due to concurrent | reason=optimistic_lock", source);
         } catch (Exception e){
-            logger.error("[USER SCHEDULER] User scheduler failed due to unexpected error", e);
+            logger.error("[USER SCHEDULER {}] User scheduler failed due to unexpected error", source, e);
         }
     }
 }

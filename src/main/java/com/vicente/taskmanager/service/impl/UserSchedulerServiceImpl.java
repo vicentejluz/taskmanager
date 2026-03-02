@@ -73,6 +73,17 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
         }
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public void deleteUsersWithPendingVerificationOlderThan72Hours() {
+        OffsetDateTime thresholdDate = OffsetDateTime.now().minusHours(72);
+        List<User> users = userRepository.findByAccountStatusAndUpdatedAtBefore(
+                AccountStatus.PENDING_VERIFICATION,
+                thresholdDate);
+
+        deleteUsersWithStatusPending(users, thresholdDate);
+    }
+
     private void deleteUsers(List<User> users, OffsetDateTime thresholdDate) {
         if (!users.isEmpty()) {
             AtomicInteger count = new AtomicInteger();
@@ -91,7 +102,34 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
             }
             logger.warn("[USER SCHEDULER] Users found but none deleted due to concurrency");
         }else{
-            logger.debug("[USER SCHEDULER] No Users to delete");
+            logger.debug("[USER SCHEDULER] No users to delete");
+        }
+    }
+
+    private void deleteUsersWithStatusPending(List<User> users, OffsetDateTime thresholdDate) {
+        if (!users.isEmpty()) {
+            AtomicInteger count = new AtomicInteger();
+            users.forEach(user -> {
+                try {
+                    if (user.getDeletedAt() == null) {
+                        userSchedulerHelper.deleteSingleUser(user);
+                    }else{
+                        userSchedulerHelper.resolvePendingVerification(user);
+                    }
+                    count.incrementAndGet();
+                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
+                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock - deleteUsersWithStatusPending" +
+                            " | userId={}", user.getId());
+                }
+            });
+            if(count.get() > 0) {
+                logger.info("[USER SCHEDULER] Users deleted or resolved pending verification | threshold={} count={}",
+                        thresholdDate, count.get());
+                return;
+            }
+            logger.warn("[USER SCHEDULER] Users found but none deleted resolved pending verification due to concurrency");
+        }else{
+            logger.debug("[USER SCHEDULER] No users to delete or resolved pending verification");
         }
     }
 }
