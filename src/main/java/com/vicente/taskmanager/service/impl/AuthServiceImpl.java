@@ -41,7 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final EntityManager entityManager;
     private final AuthenticationManager authenticationManager;
-    private final Long LOCK_MINUTES;
+    private final Long BASE_TIME_MINUTES;
     private final Integer MAX_ATTEMPTS;
 
     private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
@@ -52,8 +52,8 @@ public class AuthServiceImpl implements AuthService {
             TokenService tokenService, EmailService emailService,
             EntityManager entityManager,
             AuthenticationManager authenticationManager,
-            @Value("${security.lock.minutes}") Long lockMinutes,
-            @Value("${security.lock.max_attempts}") Integer maxAttempts
+            @Value("${security.base.time.minutes}") Long BASE_TIME_MINUTES,
+            @Value("${security.lock.max_attempts}") Integer MAX_ATTEMPTS
     ) {
         this.userRepository = userRepository;
         this.verificationTokenService = verificationTokenService;
@@ -62,8 +62,8 @@ public class AuthServiceImpl implements AuthService {
         this.emailService = emailService;
         this.entityManager = entityManager;
         this.authenticationManager = authenticationManager;
-        LOCK_MINUTES = lockMinutes;
-        MAX_ATTEMPTS = maxAttempts;
+        this.BASE_TIME_MINUTES = BASE_TIME_MINUTES;
+        this.MAX_ATTEMPTS = MAX_ATTEMPTS;
     }
 
     @Override
@@ -95,10 +95,6 @@ public class AuthServiceImpl implements AuthService {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
         User user = findUserForLogin(loginRequestDTO);
-
-        if(user.isLockExpired()){
-            user.unlock();
-        }
 
         try {
             Authentication authentication = getAuthentication(loginRequestDTO);
@@ -227,7 +223,7 @@ public class AuthServiceImpl implements AuthService {
     private void handleFailedLogin(User user) {
         logger.debug("Bad credentials | email={}", user.getEmail());
         if(!user.getRoles().contains(UserRole.ADMIN)) {
-            user.registerFailedLoginAttempt(LOCK_MINUTES, MAX_ATTEMPTS);
+            user.registerFailedLoginAttempt(BASE_TIME_MINUTES, MAX_ATTEMPTS);
         }
     }
 

@@ -4,5 +4,4 @@ public interface UserSchedulerService {
     void deleteDisabledUsersOlderThan180Days();
     void deleteUsersWithDeletedAtOlderThan180Days();
     void deleteUsersWithPendingVerificationOlderThan72Hours();
-    void unlockUsersWithExpiredLock();
 }

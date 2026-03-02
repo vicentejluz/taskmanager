@@ -49,32 +49,6 @@ public class UserSchedulerServiceImpl implements UserSchedulerService {
 
     @Override
     @Transactional(readOnly = true)
-    public void unlockUsersWithExpiredLock() {
-        List<User> users = userRepository.findByLockUntilBefore(OffsetDateTime.now());
-
-        if (!users.isEmpty()) {
-            AtomicInteger count = new AtomicInteger();
-            users.forEach(user -> {
-                try {
-                    userSchedulerHelper.unlockSingleUser(user);
-                    count.incrementAndGet();
-                } catch (ObjectOptimisticLockingFailureException | OptimisticLockException e) {
-                    logger.warn("[USER SCHEDULER] User skipped due to optimistic lock - unlockUsersWithExpiredLock" +
-                            " | userId={}", user.getId());
-                }
-            });
-            if(count.get() > 0) {
-                logger.info("[USER SCHEDULER] Users update | count={}", count.get());
-                return;
-            }
-            logger.warn("[USER SCHEDULER] Users found but none updated due to concurrency");
-        }else{
-            logger.debug("[USER SCHEDULER] No users to update");
-        }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public void deleteUsersWithPendingVerificationOlderThan72Hours() {
         OffsetDateTime thresholdDate = OffsetDateTime.now().minusHours(72);
         List<User> users = userRepository.findByAccountStatusAndUpdatedAtBefore(

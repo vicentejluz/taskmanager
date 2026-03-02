@@ -26,13 +26,6 @@ public class UserSchedulerHelper {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void unlockSingleUser(User user) {
-        logger.debug("[USER SCHEDULER] Executing update single user | userId={}", user.getId());
-        user.unlock();
-        userRepository.save(user);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void resolvePendingVerification(User user) {
         logger.debug("[USER SCHEDULER] Executing resolve pending verification | userId={}", user.getId());
         user.setAccountStatus(AccountStatus.ACTIVE);

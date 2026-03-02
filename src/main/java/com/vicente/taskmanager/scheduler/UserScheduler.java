@@ -38,7 +38,6 @@ public class UserScheduler {
             if(source.equals(EVERY_DAY)) {
                 userSchedulerService.deleteDisabledUsersOlderThan180Days();
                 userSchedulerService.deleteUsersWithDeletedAtOlderThan180Days();
-                userSchedulerService.unlockUsersWithExpiredLock();
             }else{
                 userSchedulerService.deleteUsersWithPendingVerificationOlderThan72Hours();
             }

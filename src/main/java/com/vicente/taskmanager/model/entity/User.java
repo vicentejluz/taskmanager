@@ -144,32 +144,90 @@ public class User extends AbstractEntity implements UserDetails {
         return true;
     }
     
-    public void registerFailedLoginAttempt(long lockMinutes, int maxAttempts) {
+    public void registerFailedLoginAttempt(long baseTime, int maxAttempts) {
         this.incrementFailedAttempts();
         if (this.failedAttempts >= maxAttempts) {
-            this.lockUntil = this.calculateLockExpiration(lockMinutes);
+            this.lockUntil = this.calculateLockExpiration(baseTime, maxAttempts);
         }
     }
 
     public void resetFailedAttempts() {
-        this.failedAttempts = 0;
-    }
-
-    public void unlock() {
-        this.resetFailedAttempts();
         this.lockUntil = null;
-    }
-
-    public boolean isLockExpired() {
-        return this.lockUntil != null &&
-                this.lockUntil.isBefore(OffsetDateTime.now());
+        this.failedAttempts = 0;
     }
 
     private void incrementFailedAttempts() {
         this.failedAttempts += 1;
     }
 
-    private OffsetDateTime calculateLockExpiration(long lockMinutes) {
+    private OffsetDateTime calculateLockExpiration(long baseTime, int maxAttempts) {
+        final long MAX_LOCK_MINUTES = 1440;
+        long blocks = failedAttempts - maxAttempts;
+        long lockMinutes = (long) Math.min(baseTime * Math.pow(2, blocks), MAX_LOCK_MINUTES);
         return OffsetDateTime.now().plusMinutes(lockMinutes);
     }
+
+    /*
+     * Progressão exponencial do tempo de bloqueio usando deslocamento de bits (bit shift).
+     *
+     * A expressão:
+     *
+     *      (1L << blocks)
+     *
+     * significa "2 elevado a blocks" (2^blocks).
+     *
+     * O operador << é o operador de deslocamento de bits para a esquerda.
+     * Ele move os bits de um número binário para a esquerda.
+     *
+     * Em binário:
+     *
+     *      1  = 0001
+     *
+     * Quando deslocamos 1 bit para a esquerda:
+     *
+     *      1L << 1  → 0010  = 2
+     *
+     * Dois deslocamentos:
+     *
+     *      1L << 2  → 0100  = 4
+     *
+     * Três deslocamentos:
+     *
+     *      1L << 3  → 1000  = 8
+     *
+     * Ou seja:
+     *
+     *      1L << n  =  2^n
+     *
+     * Portanto:
+     *
+     *      baseTime * (1L << blocks)
+     *
+     * é equivalente matematicamente a:
+     *
+     *      baseTime * 2^blocks
+     *
+     * Isso cria um crescimento exponencial do tempo de bloqueio (exponential backoff).
+     *
+     * Exemplo prático (baseTime = 30 minutos):
+     *
+     *      blocks = 0 → 30 * 2^0 = 30
+     *      blocks = 1 → 30 * 2^1 = 60
+     *      blocks = 2 → 30 * 2^2 = 120
+     *      blocks = 3 → 30 * 2^3 = 240
+     *      blocks = 4 → 30 * 2^4 = 480
+     *      ...
+     *
+     * Esse comportamento é utilizado para:
+     *  - Dificultar ataques de força bruta
+     *  - Penalizar tentativas consecutivas
+     *  - Aumentar progressivamente o tempo de bloqueio
+     *
+     * O valor final ainda é limitado (cap) por um tempo máximo permitido
+     * para evitar bloqueios excessivamente longos.
+     *
+     * O uso de "1L" (long) ao invés de "1" (int) garante que o cálculo
+     * seja feito utilizando 64 bits, reduzindo risco de overflow.
+     */
+    //long lockMinutes = baseTime * (1L << blocks);
 }
