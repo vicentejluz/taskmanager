@@ -1,6 +1,7 @@
-package com.vicente.taskmanager.model.entity;
+package com.vicente.taskmanager.domain.entity;
 
-import com.vicente.taskmanager.model.enums.TaskStatus;
+import com.vicente.taskmanager.domain.entity.base.AuditedEntity;
+import com.vicente.taskmanager.domain.enums.TaskStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.*;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
@@ -9,7 +10,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "tb_task")
-public class Task extends AbstractEntity {
+public class Task extends AuditedEntity {
     @Column(nullable = false, length = 50)
     private String title;
 

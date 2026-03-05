@@ -1,9 +1,9 @@
 package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.exception.VerificationTokenException;
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.entity.VerificationToken;
-import com.vicente.taskmanager.model.enums.TokenType;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.entity.VerificationToken;
+import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.repository.VerificationTokenRepository;
 import com.vicente.taskmanager.service.VerificationTokenService;
 import jakarta.persistence.EntityManager;

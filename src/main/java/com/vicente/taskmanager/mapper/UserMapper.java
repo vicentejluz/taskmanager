@@ -3,7 +3,7 @@ package com.vicente.taskmanager.mapper;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.*;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 
 public final class UserMapper {
     public static User toEntity(RegisterUserRequestDTO request) {

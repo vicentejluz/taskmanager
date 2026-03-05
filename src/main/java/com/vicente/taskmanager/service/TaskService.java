@@ -4,7 +4,7 @@ import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;

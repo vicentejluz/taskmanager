@@ -1,6 +1,6 @@
 package com.vicente.taskmanager.security.filter;
 
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;

@@ -371,6 +371,19 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).body(err);
     }
 
+    @ExceptionHandler(RefreshTokenException.class)
+    public ResponseEntity<StandardError> refreshToken(RefreshTokenException e, HttpServletRequest request) {
+        String error = "Refresh Token Error";
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
+
+        logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
     @ExceptionHandler(InvalidUserStateTransitionException.class)
     public ResponseEntity<StandardError> invalidUserStateTransition(InvalidUserStateTransitionException e,
                                                                     HttpServletRequest request) {

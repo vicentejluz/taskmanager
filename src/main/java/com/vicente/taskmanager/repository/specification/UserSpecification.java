@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.repository.specification;
 
 import com.vicente.taskmanager.dto.filter.UserFilterDTO;
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Objects;

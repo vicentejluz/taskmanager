@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.repository;
 
-import com.vicente.taskmanager.model.entity.VerificationToken;
-import com.vicente.taskmanager.model.enums.TokenType;
+import com.vicente.taskmanager.domain.entity.VerificationToken;
+import com.vicente.taskmanager.domain.enums.TokenType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

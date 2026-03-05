@@ -1,11 +1,11 @@
 package com.vicente.taskmanager.mapper;
 
-import com.vicente.taskmanager.model.entity.Task;
+import com.vicente.taskmanager.domain.entity.Task;
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 import org.springframework.data.domain.Page;
 
 public final class TaskMapper {

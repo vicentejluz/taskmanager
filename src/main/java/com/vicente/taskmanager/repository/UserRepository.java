@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.repository;
 
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;

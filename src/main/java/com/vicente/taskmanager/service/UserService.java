@@ -4,7 +4,7 @@ import com.vicente.taskmanager.dto.filter.UserFilterDTO;
 import com.vicente.taskmanager.dto.request.PasswordUpdateRequestDTO;
 import com.vicente.taskmanager.dto.request.UserUpdateRequestDTO;
 import com.vicente.taskmanager.dto.response.*;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 import org.springframework.data.domain.Pageable;
 
 public interface UserService {

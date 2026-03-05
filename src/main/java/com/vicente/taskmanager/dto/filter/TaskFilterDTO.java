@@ -1,6 +1,6 @@
 package com.vicente.taskmanager.dto.filter;
 
-import com.vicente.taskmanager.model.enums.TaskStatus;
+import com.vicente.taskmanager.domain.enums.TaskStatus;
 
 import java.time.LocalDate;
 

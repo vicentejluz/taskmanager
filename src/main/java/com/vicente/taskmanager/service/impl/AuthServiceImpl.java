@@ -1,21 +1,24 @@
 package com.vicente.taskmanager.service.impl;
 
+import com.vicente.taskmanager.domain.entity.RefreshToken;
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.PasswordRequestDTO;
+import com.vicente.taskmanager.dto.request.RefreshTokenRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
-import com.vicente.taskmanager.dto.response.LoginResponseDTO;
+import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.exception.*;
 import com.vicente.taskmanager.mapper.UserMapper;
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.entity.VerificationToken;
-import com.vicente.taskmanager.model.enums.AccountStatus;
-import com.vicente.taskmanager.model.enums.TokenType;
-import com.vicente.taskmanager.model.enums.UserRole;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.entity.VerificationToken;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
+import com.vicente.taskmanager.domain.enums.TokenType;
+import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import com.vicente.taskmanager.service.EmailService;
+import com.vicente.taskmanager.service.RefreshTokenService;
 import com.vicente.taskmanager.service.VerificationTokenService;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.NonNull;
@@ -36,9 +39,10 @@ import java.util.*;
 public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final VerificationTokenService verificationTokenService;
-    private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
     private final TokenService tokenService;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
     private final EntityManager entityManager;
     private final AuthenticationManager authenticationManager;
     private final Long BASE_TIME_MINUTES;
@@ -48,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
 
     public AuthServiceImpl(
             UserRepository userRepository, VerificationTokenService verificationTokenService,
+            RefreshTokenService refreshTokenService,
             PasswordEncoder passwordEncoder,
             TokenService tokenService, EmailService emailService,
             EntityManager entityManager,
@@ -57,6 +62,7 @@ public class AuthServiceImpl implements AuthService {
     ) {
         this.userRepository = userRepository;
         this.verificationTokenService = verificationTokenService;
+        this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.emailService = emailService;
@@ -90,25 +96,33 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(noRollbackFor = BadCredentialsException.class)
-    public LoginResponseDTO login(LoginRequestDTO loginRequestDTO) {
+    @Transactional(noRollbackFor = {BadCredentialsException.class, AccountLockedException.class})
+    public TokenResponseDTO login(LoginRequestDTO loginRequestDTO) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
-        User user = findUserForLogin(loginRequestDTO);
+        User user = userRepository.findByEmail(loginRequestDTO.email().toLowerCase().trim())
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         try {
             Authentication authentication = getAuthentication(loginRequestDTO);
 
             user = (User) authentication.getPrincipal();
-            String token = tokenService.generateToken(Objects.requireNonNull(user));
+            String accessToken = tokenService.generateToken(Objects.requireNonNull(user));
+            String refreshToken = refreshTokenService.create(Objects.requireNonNull(user));
 
             user.resetFailedAttempts();
 
             logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
 
-            return new LoginResponseDTO(token);
+            return new TokenResponseDTO(accessToken, refreshToken);
         }catch (BadCredentialsException e) {
             handleFailedLogin(Objects.requireNonNull(user));
+
+            if(!user.isAccountNonLocked()) {
+                logger.debug("User account locked | userId={}", user.getId());
+                throw new AccountLockedException("User account is locked. Try again later.", user.getLockUntil());
+            }
+
             throw e;
         }
     }
@@ -148,7 +162,6 @@ public class AuthServiceImpl implements AuthService {
 
         user.setAccountStatus(AccountStatus.ACTIVE);
         if (user.getDeletedAt() != null) user.setDeletedAt(null);
-
         userRepository.saveAndFlush(user);
 
         verificationTokenService.consumeToken(verificationToken);
@@ -158,7 +171,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void validateToken(String token) {
-        logger.info("Validating token | token={}", token.substring(0,8));
+        logger.info("Validating token | tokenPrefix={}", token.substring(0,8));
         VerificationToken verificationToken = verificationTokenService.findByToken(token);
         verificationTokenService.validateTokenForConsumption(verificationToken);
         logger.info("Token validated successfully | tokenId={}", verificationToken.getId());
@@ -182,12 +195,31 @@ public class AuthServiceImpl implements AuthService {
 
         user.setPassword(passwordEncoder.encode(passwordRequestDTO.password()));
 
+        user.resetFailedAttempts();
+
         userRepository.saveAndFlush(user);
 
         verificationTokenService.consumeToken(verificationToken);
 
         emailService.sendPasswordResetSuccessEmail(user.getEmail(), ipAddress);
         logger.info("Password reset successfully | userId={} | email={}", user.getId(), user.getEmail());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TokenResponseDTO refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO) {
+        logger.info("Starting refresh token process | refreshTokenPrefix={}",
+                refreshTokenRequestDTO.refreshToken().substring(0,8));
+        RefreshToken refreshToken = refreshTokenService.validate(refreshTokenRequestDTO.refreshToken());
+
+        User user = userRepository.findById(refreshToken.getUser().getId()).orElseThrow(() -> {
+                logger.debug("Invalid refresh token | userId={}", refreshToken.getUser().getId());
+                return new UserNotFoundException("User not found");
+                });
+
+        String accessToken = tokenService.generateToken(user);
+        logger.info("User refreshed token successfully | userId={}", user.getId());
+        return new TokenResponseDTO(accessToken, refreshToken.getToken());
     }
 
     private void validateUserForTokenRequest(TokenType tokenType, User user) {
@@ -232,17 +264,6 @@ public class AuthServiceImpl implements AuthService {
                 loginRequestDTO.email().toLowerCase().trim(),
                 loginRequestDTO.password());
         return authenticationManager.authenticate(authenticationToken);
-    }
-
-    private @NonNull User findUserForLogin(LoginRequestDTO loginRequestDTO) {
-        User user = userRepository.findByEmail(loginRequestDTO.email().toLowerCase().trim())
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
-
-        if(user.getDeletedAt() != null){
-            logger.debug("User account has been deleted | email={}", user.getEmail());
-            throw new AccountDeletedException("Invalid email or password");
-        }
-        return user;
     }
 
     private @NonNull User prepareUserForRegistration(RegisterUserRequestDTO registerUserRequest,

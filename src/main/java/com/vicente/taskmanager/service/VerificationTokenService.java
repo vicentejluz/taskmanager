@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.service;
 
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.entity.VerificationToken;
-import com.vicente.taskmanager.model.enums.TokenType;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.entity.VerificationToken;
+import com.vicente.taskmanager.domain.enums.TokenType;
 
 public interface VerificationTokenService {
     void consumeToken(VerificationToken verificationToken);

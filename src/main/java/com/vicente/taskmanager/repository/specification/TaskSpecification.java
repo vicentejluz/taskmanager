@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.repository.specification;
 
-import com.vicente.taskmanager.model.entity.Task;
-import com.vicente.taskmanager.model.enums.TaskStatus;
+import com.vicente.taskmanager.domain.entity.Task;
+import com.vicente.taskmanager.domain.enums.TaskStatus;
 import com.vicente.taskmanager.dto.filter.TaskFilterDTO;
 import org.springframework.data.jpa.domain.Specification;
 

@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.enums;
+package com.vicente.taskmanager.domain.enums;
 
 import com.vicente.taskmanager.exception.InvalidTaskStatusException;
 

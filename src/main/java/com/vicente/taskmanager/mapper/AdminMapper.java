@@ -2,7 +2,7 @@ package com.vicente.taskmanager.mapper;
 
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.response.UserAdminResponseDTO;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
 import org.springframework.data.domain.Page;
 
 public class AdminMapper {

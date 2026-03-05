@@ -1,7 +1,8 @@
-package com.vicente.taskmanager.model.entity;
+package com.vicente.taskmanager.domain.entity;
 
-import com.vicente.taskmanager.model.enums.AccountStatus;
-import com.vicente.taskmanager.model.enums.UserRole;
+import com.vicente.taskmanager.domain.entity.base.AuditedEntity;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
+import com.vicente.taskmanager.domain.enums.UserRole;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "tb_user")
-public class User extends AbstractEntity implements UserDetails {
+public class User extends AuditedEntity implements UserDetails {
     @Column(nullable = false, length = 60)
     private String name;
 

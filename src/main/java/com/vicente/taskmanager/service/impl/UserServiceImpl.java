@@ -7,9 +7,9 @@ import com.vicente.taskmanager.exception.*;
 
 import com.vicente.taskmanager.mapper.AdminMapper;
 import com.vicente.taskmanager.mapper.UserMapper;
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
-import com.vicente.taskmanager.model.enums.UserRole;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
+import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.repository.specification.UserSpecification;
 import com.vicente.taskmanager.dto.filter.UserFilterDTO;
@@ -199,7 +199,7 @@ public class UserServiceImpl implements UserService {
     private @NonNull User getUser(Long id) {
         return userRepository.findById(id).orElseThrow(() -> {
             logger.debug("User not found | userId={}", id);
-            return new UserNotFoundException("User Not found");
+            return new UserNotFoundException("User not found");
         });
     }
 

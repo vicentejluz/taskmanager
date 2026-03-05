@@ -1,6 +1,6 @@
 package com.vicente.taskmanager.dto.response;
 
-import com.vicente.taskmanager.model.enums.AccountStatus;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(

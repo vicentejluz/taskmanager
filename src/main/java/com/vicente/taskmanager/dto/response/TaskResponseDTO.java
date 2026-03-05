@@ -1,6 +1,6 @@
 package com.vicente.taskmanager.dto.response;
 
-import com.vicente.taskmanager.model.enums.TaskStatus;
+import com.vicente.taskmanager.domain.enums.TaskStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;

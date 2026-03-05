@@ -1,7 +1,7 @@
 package com.vicente.taskmanager.scheduler.util;
 
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
 import com.vicente.taskmanager.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

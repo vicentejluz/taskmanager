@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.model.enums;
+package com.vicente.taskmanager.domain.enums;
 
 public enum TokenType {
     EMAIL_VERIFICATION(60L),

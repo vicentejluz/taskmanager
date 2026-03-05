@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.config;
 
-import com.vicente.taskmanager.model.entity.User;
-import com.vicente.taskmanager.model.enums.AccountStatus;
-import com.vicente.taskmanager.model.enums.UserRole;
+import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.domain.enums.AccountStatus;
+import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;

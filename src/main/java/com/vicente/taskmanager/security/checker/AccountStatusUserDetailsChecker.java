@@ -1,11 +1,14 @@
 package com.vicente.taskmanager.security.checker;
 
+import com.vicente.taskmanager.exception.AccountDeletedException;
 import com.vicente.taskmanager.exception.AccountLockedException;
-import com.vicente.taskmanager.model.entity.User;
+import com.vicente.taskmanager.domain.entity.User;
+import org.jspecify.annotations.NonNull;
 import org.springframework.context.support.MessageSourceAccessor;
 import org.springframework.security.authentication.AccountExpiredException;
 import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.SpringSecurityMessageSource;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsChecker;
@@ -19,12 +22,23 @@ public class AccountStatusUserDetailsChecker implements UserDetailsChecker {
     protected final MessageSourceAccessor messages = SpringSecurityMessageSource
             .getAccessor();
 
-    public void check(UserDetails user) {
-        if (!user.isAccountNonLocked()) {
-            OffsetDateTime lockedUntil = ((User) user).getLockUntil();
+    public void check(@NonNull UserDetails user) {
+        if(user instanceof User domainUser && domainUser.getDeletedAt() != null){
+            throw new AccountDeletedException(messages.getMessage("AccountStatusUserDetailsChecker.deleted",
+                    "Invalid email or password"));
+        }
 
-            throw new AccountLockedException(messages.getMessage(
-                    "AccountStatusUserDetailsChecker.locked", "User account is locked"), lockedUntil);
+        if (!user.isAccountNonLocked()) {
+            if(user instanceof User domainUser) {
+                OffsetDateTime lockedUntil = domainUser.getLockUntil();
+
+                throw new AccountLockedException(messages.getMessage(
+                        "AccountStatusUserDetailsChecker.locked",
+                        "User account is locked"), lockedUntil);
+            }
+
+            throw new LockedException(messages.getMessage("AccountStatusUserDetailsChecker.locked",
+                    "User account is locked"));
         }
 
         if (!user.isEnabled()) {
