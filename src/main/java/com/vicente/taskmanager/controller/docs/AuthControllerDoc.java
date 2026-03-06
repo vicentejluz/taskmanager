@@ -1,24 +1,23 @@
 package com.vicente.taskmanager.controller.docs;
 
+import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.request.*;
+import com.vicente.taskmanager.dto.response.AccessTokenResponseDTO;
 import com.vicente.taskmanager.dto.response.MessageResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
-import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.exception.error.LockedError;
 import com.vicente.taskmanager.exception.error.StandardError;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Authentication", description = "Authentication endpoints")
-@RequestMapping(value = "/api/v1/auth")
 public interface AuthControllerDoc {
     @Operation(
             summary = "Register a new user",
@@ -52,12 +51,16 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PostMapping("/register")
-    ResponseEntity<RegisterUserResponseDTO> register(@Valid @RequestBody RegisterUserRequestDTO registerUserRequest);
+    ResponseEntity<RegisterUserResponseDTO> register(RegisterUserRequestDTO registerUserRequest);
 
     @Operation(
             summary = "Authenticate user",
-            description = "Authenticates a user using email and password and returns a access token and Refresh token."
+            description =
+                """
+                Authenticates a user using email and password.
+                Returns a JWT access token in the response body and sets a refresh token
+                as an HTTP-only cookie.
+                """
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -65,7 +68,7 @@ public interface AuthControllerDoc {
                     description = "Authentication successful",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = TokenResponseDTO.class)
+                            schema = @Schema(implementation = AccessTokenResponseDTO.class)
                     )
             ),
 
@@ -95,8 +98,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PostMapping("/login")
-    ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO);
+    ResponseEntity<AccessTokenResponseDTO> login(LoginRequestDTO loginRequestDTO);
 
     @Operation(
             summary = "Resend email verification link",
@@ -131,8 +133,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PostMapping("/resend-email-verification")
-    ResponseEntity<MessageResponseDTO> resendEmailVerification(@Valid @RequestBody EmailRequestDTO emailRequestDTO);
+    ResponseEntity<MessageResponseDTO> resendEmailVerification(EmailRequestDTO emailRequestDTO);
 
     @Operation(
             summary = "Request password reset",
@@ -186,8 +187,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PostMapping("/forgot-password")
-    ResponseEntity<MessageResponseDTO> forgotPassword(@Valid @RequestBody EmailRequestDTO emailRequestDTO);
+    ResponseEntity<MessageResponseDTO> forgotPassword(EmailRequestDTO emailRequestDTO);
 
     @Operation(
             summary = "Verify email address",
@@ -222,8 +222,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @GetMapping("/verify-email")
-    ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token);
+    ResponseEntity<MessageResponseDTO> verifyEmail(String token);
 
     @Operation(
             summary = "Validate password reset token",
@@ -273,8 +272,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @GetMapping("/password-reset")
-    ResponseEntity<MessageResponseDTO> validateToken(@RequestParam("token") String token);
+    ResponseEntity<MessageResponseDTO> validateToken(String token);
 
     @Operation(
             summary = "Reset user password",
@@ -325,36 +323,37 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PatchMapping("/password-reset")
     ResponseEntity<MessageResponseDTO> passwordReset(
-            @RequestParam("token") String token,
-            @Valid @RequestBody PasswordRequestDTO passwordRequestDTO,
+            String token,
+            PasswordRequestDTO passwordRequestDTO,
             HttpServletRequest request);
 
     @Operation(
-            summary = "Refresh JWT access token",
+            summary = "Refresh access token",
             description = """
-            Generates a new access token using a valid refresh token.
+        Generates a new JWT access token using a valid refresh token.
 
-            This endpoint performs the following validations:
-            - Refresh token must exist
-            - Refresh token must not be expired
-            - Refresh token must not be revoked
-            - Associated user must exist
-            """
+        The refresh token is expected to be sent automatically as an HTTP-only cookie.
+
+        The following validations are performed:
+        - Refresh token must be present
+        - Refresh token must not be expired
+        - Refresh token must not be revoked
+        - The associated user must exist
+        """
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "New access token generated successfully",
+                    description = "Access token successfully generated",
                     content = @Content(
                             mediaType = "application/json",
-                            schema = @Schema(implementation = TokenResponseDTO.class)
+                            schema = @Schema(implementation = AccessTokenResponseDTO.class)
                     )
             ),
             @ApiResponse(
                     responseCode = "400",
-                    description = "Invalid request (e.g., malformed token)",
+                    description = "Bad request (e.g., malformed request or missing data)",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = StandardError.class)
@@ -362,7 +361,7 @@ public interface AuthControllerDoc {
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "Refresh token expired, revoked, or user not found",
+                    description = "Unauthorized (refresh token expired, revoked, or user not found)",
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = StandardError.class)
@@ -377,6 +376,52 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    @PostMapping("/refresh")
-    ResponseEntity<TokenResponseDTO> refreshToken(@Valid @RequestBody RefreshTokenRequestDTO refreshTokenRequestDTO);
+    ResponseEntity<AccessTokenResponseDTO> refreshToken(@Parameter(hidden = true) String refreshToken);
+
+    @Operation(
+            summary = "Logout user",
+            description = """
+        Logs out the authenticated user by revoking the refresh token.
+
+        The refresh token is expected to be sent automatically as an HTTP-only cookie.
+
+        If the refresh token is valid, it will be revoked and the cookie will be removed
+        from the client browser.
+        """
+    )
+    @ApiResponses(value = {
+
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Logout successful. Refresh token revoked and cookie removed."
+            ),
+
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request (e.g., malformed token)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Refresh token invalid or expired",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    ResponseEntity<Void> logout(@Parameter(hidden = true) String token, User user);
 }

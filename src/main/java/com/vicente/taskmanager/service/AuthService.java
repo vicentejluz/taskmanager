@@ -2,7 +2,6 @@ package com.vicente.taskmanager.service;
 
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.PasswordRequestDTO;
-import com.vicente.taskmanager.dto.request.RefreshTokenRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
@@ -15,5 +14,6 @@ public interface AuthService {
     void verifyEmail(String token);
     void validateToken(String token);
     void passwordReset(String token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
-    TokenResponseDTO refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO);
+    void logout(String token, Long userId);
+    TokenResponseDTO refreshToken(String token);
 }

@@ -3,7 +3,6 @@ package com.vicente.taskmanager.service.impl;
 import com.vicente.taskmanager.domain.entity.RefreshToken;
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.PasswordRequestDTO;
-import com.vicente.taskmanager.dto.request.RefreshTokenRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
 import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
@@ -206,11 +205,17 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public void logout(String token, Long userId) {
+        refreshTokenService.revokeToken(token, userId);
+    }
+
+    @Override
     @Transactional(readOnly = true)
-    public TokenResponseDTO refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO) {
+    public TokenResponseDTO refreshToken(String token) {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
-                refreshTokenRequestDTO.refreshToken().substring(0,8));
-        RefreshToken refreshToken = refreshTokenService.validate(refreshTokenRequestDTO.refreshToken());
+                (token != null) ? token.substring(0,8) : null);
+        RefreshToken refreshToken = refreshTokenService.validate(token);
 
         User user = userRepository.findById(refreshToken.getUser().getId()).orElseThrow(() -> {
                 logger.debug("Invalid refresh token | userId={}", refreshToken.getUser().getId());

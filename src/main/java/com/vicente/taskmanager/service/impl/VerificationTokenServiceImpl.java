@@ -104,7 +104,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
     private VerificationToken generateVerificationToken(User user, TokenType tokenType) {
         VerificationToken verificationToken = new VerificationToken(
                 UUID.randomUUID().toString(), tokenType,
-                OffsetDateTime.now().plusMinutes(tokenType.getExpirationMinutes()), user);
+                OffsetDateTime.now().plusHours(tokenType.getExpirationHours()), user);
 
         return verificationTokenRepository.save(verificationToken);
     }

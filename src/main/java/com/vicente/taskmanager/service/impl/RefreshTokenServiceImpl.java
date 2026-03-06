@@ -22,7 +22,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     public RefreshTokenServiceImpl(
             RefreshTokenRepository refreshTokenRepository,
-            @Value("${security.refresh.token.expiration.minutes}") long refreshExpiration
+            @Value("${security.refresh.token.expiration.days}") long refreshExpiration
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.refreshExpiration = refreshExpiration;
@@ -32,7 +32,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Transactional
     public String create(User user) {
         String token = UUID.randomUUID().toString();
-        OffsetDateTime expiresAt = OffsetDateTime.now().plusMinutes(refreshExpiration);
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(refreshExpiration);
         RefreshToken refreshToken = new RefreshToken(token, expiresAt, user);
 
         logger.info("Created refresh token | userId={}", user.getId());
@@ -43,23 +43,51 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional(readOnly = true)
     public RefreshToken validate(String token) {
-        logger.info("Validating refresh token | tokenPrefix={}", token.substring(0,8));
-        RefreshToken refreshToken = refreshTokenRepository.findByToken(token).orElseThrow(() -> {
-            logger.debug("Invalid refresh token | token={}", token.substring(0,8));
-            return new RefreshTokenException("Refresh token invalid!");
-        });
+        logger.info("Validating refresh token | tokenPrefix={}", tokenPrefix(token));
+        RefreshToken refreshToken = findByToken(token);
 
         if(refreshToken.isRevoked()){
-            logger.debug("Refresh token has been revoked | tokenPrefix={}", token.substring(0,8));
+            logger.debug("Refresh token has been revoked | tokenPrefix={}", tokenPrefix(token));
             throw new RefreshTokenException("Refresh token is revoked!");
         }
 
         if(refreshToken.getExpiresAt().isBefore(OffsetDateTime.now())){
-            logger.debug("Expired refresh token | tokenPrefix={}", token.substring(0,8));
+            logger.debug("Expired refresh token | tokenPrefix={}", tokenPrefix(token));
             throw new RefreshTokenException("Refresh token is expired!");
         }
 
-        logger.info("Refresh token validated | tokenPrefix={}", token.substring(0,8));
+        logger.info("Refresh token validated | tokenPrefix={}", tokenPrefix(token));
         return refreshToken;
+    }
+
+    @Override
+    @Transactional
+    public void revokeToken(String token, Long userId) {
+        logger.info("Revoking Refresh token | tokenPrefix={}", tokenPrefix(token));
+        RefreshToken refreshToken = findByToken(token);
+
+        if (!refreshToken.getUser().getId().equals(userId)) {
+            logger.debug("Refresh token does not belong to the authenticated user | tokenUserId={} | requestUserId={}",
+                    refreshToken.getUser().getId(), userId);
+            throw new RefreshTokenException("Refresh token does not belong to the authenticated user.");
+        }
+
+        if(refreshToken.isRevoked()) return;
+
+        refreshToken.setRevoked(true);
+
+        refreshTokenRepository.save(refreshToken);
+        logger.info("Refresh token revoked successfully. | tokenPrefix={}", tokenPrefix(token));
+    }
+
+    private RefreshToken findByToken(String token) {
+        return refreshTokenRepository.findByToken(token).orElseThrow(() -> {
+            logger.debug("Invalid refresh token");
+            return new RefreshTokenException("Refresh token invalid!");
+        });
+    }
+
+    private String tokenPrefix(String token) {
+        return (token != null) ? token.substring(0, 8) : null;
     }
 }

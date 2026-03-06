@@ -34,17 +34,9 @@ public class WebSecurityConfig {
     private static final String[] SWAGGER = {
             "/v3/api-docs/**",
             "/swagger-ui.html",
+            "/v3/api-docs.yaml",
             "/swagger-ui/**",
             "/"
-    };
-
-    private static final String[] ADMIN = {
-            "/api/v1/admin/users",
-            "/api/v1/admin/users/*",
-            "/api/v1/admin/users/*/enabled",
-            "/api/v1/admin/tasks/delete/*",
-            "/api/v1/admin/users/*/tasks",
-            "/api/v1/admin/tasks/*"
     };
 
     public WebSecurityConfig(SecurityFilter securityFilter,
@@ -72,13 +64,15 @@ public class WebSecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize ->
                         authorize.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout")
+                                .authenticated()
                                 .requestMatchers("/api/v1/auth/**").permitAll()
                                 .requestMatchers(SWAGGER).permitAll()
                                 .requestMatchers("/api/v1/users/me")
-                                .hasAnyRole(UserRole.USER.name(), UserRole.ADMIN.name())
+                                .authenticated()
                                 .requestMatchers(HttpMethod.DELETE, "/api/v1/users/me/delete")
                                 .hasRole(UserRole.USER.name())
-                                .requestMatchers(ADMIN)
+                                .requestMatchers("/api/v1/admin/**")
                                 .hasRole(UserRole.ADMIN.name())
                                 .anyRequest().authenticated()
                         // .requestMatchers("/**").access("hasRole('ADMIN') and hasRole('USER')")

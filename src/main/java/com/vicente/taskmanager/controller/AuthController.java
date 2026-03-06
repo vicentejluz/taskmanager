@@ -1,22 +1,29 @@
 package com.vicente.taskmanager.controller;
 
 import com.vicente.taskmanager.controller.docs.AuthControllerDoc;
+import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.request.*;
+import com.vicente.taskmanager.dto.response.AccessTokenResponseDTO;
 import com.vicente.taskmanager.dto.response.MessageResponseDTO;
 import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.service.AuthService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
+import java.time.Duration;
 
 @RestController
+@RequestMapping(value = "/api/v1/auth")
 public class AuthController implements AuthControllerDoc {
     private final AuthService authService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -26,30 +33,35 @@ public class AuthController implements AuthControllerDoc {
     }
 
     @Override
-    public ResponseEntity<RegisterUserResponseDTO> register(RegisterUserRequestDTO registerUserRequest
-    ) {
+    @PostMapping("/register")
+    public ResponseEntity<RegisterUserResponseDTO> register(
+            @Valid @RequestBody RegisterUserRequestDTO registerUserRequest) {
         logger.debug("POST /api/v1/auth/register called");
         RegisterUserResponseDTO registerUserResponseDTO =
                 authService.register(registerUserRequest);
 
-        URI uri = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(registerUserResponseDTO.id())
-                .toUri();
-
-        return ResponseEntity.created(uri).body(registerUserResponseDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(registerUserResponseDTO);
     }
 
     @Override
-    public ResponseEntity<TokenResponseDTO> login(LoginRequestDTO loginRequestDTO) {
+    @PostMapping("/login")
+    public ResponseEntity<AccessTokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
         logger.debug("POST /api/v1/auth/login login called");
-        TokenResponseDTO token = authService.login(loginRequestDTO);
-        return ResponseEntity.ok(token);
+        TokenResponseDTO tokenResponseDTO = authService.login(loginRequestDTO);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenResponseDTO.refreshToken())
+                .path("/api/v1/auth")
+                .httpOnly(true)
+                .sameSite("Strict")
+                .maxAge(Duration.ofMinutes(120))
+                .build();
+        AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(accessToken);
     }
 
     @Override
-    public ResponseEntity<MessageResponseDTO> resendEmailVerification(EmailRequestDTO emailRequestDTO) {
+    @PostMapping("/resend-email-verification")
+    public ResponseEntity<MessageResponseDTO> resendEmailVerification(@Valid @RequestBody EmailRequestDTO emailRequestDTO) {
         logger.debug("POST /api/v1/auth/resend-email-verification resend verification called | email={}",
                 emailRequestDTO.email());
         authService.sendTokenEmail(emailRequestDTO.email(), TokenType.EMAIL_VERIFICATION);
@@ -57,7 +69,8 @@ public class AuthController implements AuthControllerDoc {
     }
 
     @Override
-    public ResponseEntity<MessageResponseDTO> forgotPassword(EmailRequestDTO emailRequestDTO) {
+    @PostMapping("/forgot-password")
+    public ResponseEntity<MessageResponseDTO> forgotPassword(@Valid @RequestBody EmailRequestDTO emailRequestDTO) {
         logger.debug("POST /api/v1/auth/forgot-password forgot password called | email={}",
                 emailRequestDTO.email());
         authService.sendTokenEmail(emailRequestDTO.email(), TokenType.PASSWORD_RESET);
@@ -65,7 +78,8 @@ public class AuthController implements AuthControllerDoc {
     }
 
     @Override
-    public ResponseEntity<MessageResponseDTO> verifyEmail(String token) {
+    @GetMapping("/verify-email")
+    public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token) {
         logger.debug("GET /api/v1/auth/verify-email verify email called");
         authService.verifyEmail(token);
         return ResponseEntity.ok(new MessageResponseDTO(
@@ -73,15 +87,19 @@ public class AuthController implements AuthControllerDoc {
     }
 
     @Override
-    public ResponseEntity<MessageResponseDTO> validateToken(String token) {
+    @GetMapping("/password-reset")
+    public ResponseEntity<MessageResponseDTO> validateToken(@RequestParam("token") String token) {
         logger.debug("GET /api/v1/auth/password-reset reset password called");
         authService.validateToken(token);
         return ResponseEntity.ok(new MessageResponseDTO("Token is valid. You can now reset your password"));
     }
 
     @Override
+    @PatchMapping("/password-reset")
     public ResponseEntity<MessageResponseDTO> passwordReset(
-            String token, PasswordRequestDTO  passwordRequestDTO, HttpServletRequest request
+            @RequestParam("token") String token,
+            @Valid @RequestBody PasswordRequestDTO  passwordRequestDTO,
+            HttpServletRequest request
     ) {
         logger.debug("PATCH /api/v1/auth/password-reset reset password called");
         String ipAddress = request.getHeader("X-Forwarded-For") != null
@@ -93,9 +111,34 @@ public class AuthController implements AuthControllerDoc {
     }
 
     @Override
-    public ResponseEntity<TokenResponseDTO> refreshToken(RefreshTokenRequestDTO refreshTokenRequestDTO) {
-        logger.debug("POST /api/v1/auth/refresh-token refresh token called");
-        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshTokenRequestDTO);
-        return ResponseEntity.ok(tokenResponseDTO);
+    @PostMapping("/refresh")
+    public ResponseEntity<AccessTokenResponseDTO> refreshToken(
+            @Parameter(hidden = true)
+            @CookieValue(value = "refreshToken", required = false)
+            String refreshToken
+    ) {
+        logger.debug("POST /api/v1/auth/refresh refresh token called");
+        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken);
+        AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
+        return ResponseEntity.ok(accessToken);
+    }
+
+    @Override
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            @AuthenticationPrincipal User user
+    ) {
+        logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
+        authService.logout(refreshToken, user.getId());
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .path("/api/v1/auth")
+                .httpOnly(true)
+                .sameSite("Strict")
+                .maxAge(0)
+                .build();
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
     }
 }

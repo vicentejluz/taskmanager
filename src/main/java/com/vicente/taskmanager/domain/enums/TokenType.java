@@ -1,16 +1,16 @@
 package com.vicente.taskmanager.domain.enums;
 
 public enum TokenType {
-    EMAIL_VERIFICATION(60L),
-    PASSWORD_RESET(20L);
+    EMAIL_VERIFICATION(24L),
+    PASSWORD_RESET(1L);
 
-    private final long expirationMinutes;
+    private final long expirationHours;
 
-    TokenType(long expirationMinutes) {
-        this.expirationMinutes = expirationMinutes;
+    TokenType(long expirationHours) {
+        this.expirationHours = expirationHours;
     }
 
-    public long getExpirationMinutes() {
-        return expirationMinutes;
+    public long getExpirationHours() {
+        return expirationHours;
     }
 }

@@ -13,15 +13,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Users", description = "Users endpoints")
-@RequestMapping(value = "/api/v1")
 @SecurityRequirement(name = "bearerAuth")
 public interface UserControllerDoc {
 
@@ -47,8 +42,7 @@ public interface UserControllerDoc {
                     )
             )
     })
-    @GetMapping("/users/me")
-    ResponseEntity<UserResponseDTO> getMe(@AuthenticationPrincipal User user);
+    ResponseEntity<UserResponseDTO> getMe(User user);
 
     @Operation(
             summary = "Update authenticated user",
@@ -78,10 +72,7 @@ public interface UserControllerDoc {
                             schema = @Schema(implementation = StandardError.class))
             )
     })
-    @PatchMapping("/users/me")
-    ResponseEntity<UserUpdateResponseDTO> update(
-            @Valid @RequestBody UserUpdateRequestDTO request,
-            @AuthenticationPrincipal User user);
+    ResponseEntity<UserUpdateResponseDTO> update(UserUpdateRequestDTO request, User user);
 
     @Operation(
             summary = "Change authenticated user password",
@@ -111,10 +102,7 @@ public interface UserControllerDoc {
                             schema = @Schema(implementation = StandardError.class))
             )
     })
-    @PatchMapping("/users/me/password")
-    ResponseEntity<Void> changePassword(
-            @AuthenticationPrincipal User user,
-            @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO);
+    ResponseEntity<Void> changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO);
 
     @Operation(
             summary = "Delete authenticated user",
@@ -150,8 +138,7 @@ public interface UserControllerDoc {
                     )
             )
     })
-    @DeleteMapping("/users/me/delete")
-    ResponseEntity<Void> delete(@AuthenticationPrincipal User user);
+    ResponseEntity<Void> delete(User user);
 
     @Operation(
             summary = "Admin - Enable or disable a user",
@@ -205,8 +192,7 @@ public interface UserControllerDoc {
                     )
             )
     })
-    @PatchMapping("/admin/users/{id}/enabled")
-    ResponseEntity<UserEnabledResponseDTO> toggleUserEnabled(@PathVariable Long id);
+    ResponseEntity<UserEnabledResponseDTO> toggleUserEnabled(Long id);
 
     @Operation(
             summary = "Admin - Find user by ID",
@@ -253,8 +239,7 @@ public interface UserControllerDoc {
                     )
             )
     })
-    @GetMapping("/admin/users/{id}")
-    ResponseEntity<UserAdminResponseDTO> findById(@PathVariable Long id);
+    ResponseEntity<UserAdminResponseDTO> findById(Long id);
 
     @Operation(
             summary = "Admin - Find user by email",
@@ -305,8 +290,7 @@ public interface UserControllerDoc {
                     )
             )
     })
-    @GetMapping("/admin/users/by-email")
-    ResponseEntity<UserAdminResponseDTO> findByEmail(@RequestParam String email);
+    ResponseEntity<UserAdminResponseDTO> findByEmail(String email);
 
     @Operation(
             summary = "Admin - Find user",
@@ -357,8 +341,5 @@ public interface UserControllerDoc {
                     )
             ),
     })
-    @GetMapping("/admin/users")
-    ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(
-            @ParameterObject UserFilterDTO filter,
-            @ParameterObject Pageable pageable);
+    ResponseEntity<PageResponseDTO<UserAdminResponseDTO>> find(UserFilterDTO filter, Pageable pageable);
 }

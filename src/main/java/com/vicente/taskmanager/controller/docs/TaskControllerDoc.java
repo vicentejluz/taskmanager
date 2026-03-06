@@ -13,17 +13,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
 import java.time.LocalDate;
 
 @Tag(name = "Tasks", description = "Task management endpoints")
-@RequestMapping(value = "/api/v1")
 @SecurityRequirement(name = "bearerAuth")
 public interface TaskControllerDoc {
 
@@ -70,8 +64,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @GetMapping("/tasks/{id}")
-    ResponseEntity<TaskResponseDTO> findById(@PathVariable Long id, @AuthenticationPrincipal User user);
+    ResponseEntity<TaskResponseDTO> findById(Long id, User user);
 
     @Operation(
             summary = "Find tasks",
@@ -109,12 +102,11 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @GetMapping("/tasks")
     ResponseEntity<PageResponseDTO<TaskResponseDTO>> find(
-            @RequestParam(required = false) String status,
-            @RequestParam(value = "due-date", required = false) LocalDate dueDate,
-            @AuthenticationPrincipal User user,
-            @ParameterObject Pageable pageable);
+            String status,
+            LocalDate dueDate,
+            User user,
+            Pageable pageable);
 
     @Operation(
             summary = "Create a new task",
@@ -152,10 +144,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @PostMapping("/tasks")
-    ResponseEntity<TaskResponseDTO> create(
-            @Valid @RequestBody TaskCreateRequestDTO request,
-            @AuthenticationPrincipal User user);
+    ResponseEntity<TaskResponseDTO> create(TaskCreateRequestDTO request, User user);
 
     @Operation(
             summary = "Update a task",
@@ -209,11 +198,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @PatchMapping("/tasks/{id}")
-    ResponseEntity<TaskResponseDTO> update(
-            @PathVariable Long id,
-            @Valid @RequestBody TaskUpdateRequestDTO request,
-            @AuthenticationPrincipal User user);
+    ResponseEntity<TaskResponseDTO> update(Long id, TaskUpdateRequestDTO request, User user);
 
     @Operation(
             summary = "Mark task as DONE",
@@ -268,8 +253,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @PatchMapping("/tasks/{id}/done")
-    ResponseEntity<TaskResponseDTO> done(@PathVariable Long id, @AuthenticationPrincipal User user);
+    ResponseEntity<TaskResponseDTO> done(Long id, User user);
 
     @Operation(
             summary = "Cancel a task",
@@ -324,8 +308,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @PatchMapping("/tasks/{id}/cancel")
-    ResponseEntity<TaskResponseDTO> cancel(@PathVariable Long id, @AuthenticationPrincipal User user);
+    ResponseEntity<TaskResponseDTO> cancel(Long id, User user);
 
     @Operation(
             summary = "Admin - Delete task",
@@ -365,8 +348,7 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @DeleteMapping("/admin/tasks/{id}/delete")
-    ResponseEntity<Void> deleteTask(@PathVariable Long id);
+    ResponseEntity<Void> deleteTask(Long id);
 
     @Operation(
             summary = "Admin - Find user tasks",
@@ -422,12 +404,11 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @GetMapping("/admin/users/{userId}/tasks")
     ResponseEntity<PageResponseDTO<TaskResponseDTO>> adminFind(
-            @RequestParam(required = false) String status,
-            @RequestParam(value = "due-date", required = false) LocalDate dueDate,
-            @PathVariable Long userId,
-            @ParameterObject Pageable pageable);
+            String status,
+            LocalDate dueDate,
+            Long userId,
+            Pageable pageable);
 
     @Operation(
             summary = "Admin - Find task by ID",
@@ -471,6 +452,5 @@ public interface TaskControllerDoc {
                     )
             )
     })
-    @GetMapping("/admin/tasks/{id}")
-    ResponseEntity<TaskResponseDTO> getTask(@PathVariable Long id);
+    ResponseEntity<TaskResponseDTO> getTask(Long id);
 }
