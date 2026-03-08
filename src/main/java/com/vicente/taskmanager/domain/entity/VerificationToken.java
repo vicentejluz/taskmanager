@@ -9,7 +9,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "tb_verification_token")
+@Table(name = "tb_verification_tokens")
 public class VerificationToken extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String token;

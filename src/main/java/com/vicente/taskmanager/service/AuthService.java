@@ -9,7 +9,7 @@ import com.vicente.taskmanager.domain.enums.TokenType;
 
 public interface AuthService {
     RegisterUserResponseDTO register(RegisterUserRequestDTO registerUserRequest);
-    TokenResponseDTO login(LoginRequestDTO loginRequestDTO);
+    TokenResponseDTO login(LoginRequestDTO loginRequestDTO, String oldRefreshToken);
     void sendTokenEmail(String email, TokenType tokeType);
     void verifyEmail(String token);
     void validateToken(String token);

@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "tb_refresh_token")
+@Table(name = "tb_refresh_tokens")
 public class RefreshToken extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String token;
@@ -48,10 +48,6 @@ public class RefreshToken extends BaseEntity {
 
     public void setToken(String token) {
         this.token = token;
-    }
-
-    public void setExpiresAt(OffsetDateTime expiresAt) {
-        this.expiresAt = expiresAt;
     }
 
     public void setUser(User user) {

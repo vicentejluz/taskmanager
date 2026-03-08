@@ -96,7 +96,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(noRollbackFor = {BadCredentialsException.class, AccountLockedException.class})
-    public TokenResponseDTO login(LoginRequestDTO loginRequestDTO) {
+    public TokenResponseDTO login(LoginRequestDTO loginRequestDTO, String oldRefreshToken) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
         User user = userRepository.findByEmail(loginRequestDTO.email().toLowerCase().trim())
@@ -107,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
 
             user = (User) authentication.getPrincipal();
             String accessToken = tokenService.generateToken(Objects.requireNonNull(user));
-            String refreshToken = refreshTokenService.create(Objects.requireNonNull(user));
+            String refreshToken = refreshTokenService.create(Objects.requireNonNull(user), oldRefreshToken);
 
             user.resetFailedAttempts();
 
@@ -119,6 +119,7 @@ public class AuthServiceImpl implements AuthService {
 
             if(!user.isAccountNonLocked()) {
                 logger.debug("User account locked | userId={}", user.getId());
+                refreshTokenService.revokeAllTokens(user.getId());
                 throw new AccountLockedException("User account is locked. Try again later.", user.getLockUntil());
             }
 
@@ -199,6 +200,8 @@ public class AuthServiceImpl implements AuthService {
         userRepository.saveAndFlush(user);
 
         verificationTokenService.consumeToken(verificationToken);
+
+        refreshTokenService.revokeAllTokens(user.getId());
 
         emailService.sendPasswordResetSuccessEmail(user.getEmail(), ipAddress);
         logger.info("Password reset successfully | userId={} | email={}", user.getId(), user.getEmail());

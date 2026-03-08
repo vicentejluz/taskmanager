@@ -9,7 +9,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "tb_task")
+@Table(name = "tb_tasks")
 public class Task extends AuditedEntity {
     @Column(nullable = false, length = 50)
     private String title;

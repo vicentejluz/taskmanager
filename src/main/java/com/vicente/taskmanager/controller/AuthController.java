@@ -45,14 +45,17 @@ public class AuthController implements AuthControllerDoc {
 
     @Override
     @PostMapping("/login")
-    public ResponseEntity<AccessTokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO loginRequestDTO) {
-        logger.debug("POST /api/v1/auth/login login called");
-        TokenResponseDTO tokenResponseDTO = authService.login(loginRequestDTO);
+    public ResponseEntity<AccessTokenResponseDTO> login(
+            @Valid @RequestBody LoginRequestDTO loginRequestDTO,
+            @CookieValue(value = "refreshToken", required = false) String refreshToken
+    ) {
+        logger.debug("POST /api/v1/auth/login login called | email={}", loginRequestDTO.email());
+        TokenResponseDTO tokenResponseDTO = authService.login(loginRequestDTO, refreshToken);
         ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenResponseDTO.refreshToken())
-                .path("/api/v1/auth")
+                .path("/api/v1")
                 .httpOnly(true)
                 .sameSite("Strict")
-                .maxAge(Duration.ofMinutes(120))
+                .maxAge(Duration.ofDays(12))
                 .build();
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
@@ -132,7 +135,7 @@ public class AuthController implements AuthControllerDoc {
         logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
         authService.logout(refreshToken, user.getId());
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .path("/api/v1/auth")
+                .path("/api/v1")
                 .httpOnly(true)
                 .sameSite("Strict")
                 .maxAge(0)

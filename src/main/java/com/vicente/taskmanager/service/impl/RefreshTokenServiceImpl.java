@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,7 +32,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     @Transactional
-    public String create(User user) {
+    public String create(User user, String oldRefreshToken) {
+        revokeOldRefreshTokenIfOwnedByUser(user.getId(), oldRefreshToken);
         String token = UUID.randomUUID().toString();
         OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(refreshExpiration);
         RefreshToken refreshToken = new RefreshToken(token, expiresAt, user);
@@ -80,6 +83,39 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         logger.info("Refresh token revoked successfully. | tokenPrefix={}", tokenPrefix(token));
     }
 
+    @Override
+    @Transactional
+    public void revokeAllTokens(Long userId) {
+        logger.info("Revoking all refresh tokens | userId={}", userId);
+        List<RefreshToken> refreshTokens = refreshTokenRepository.findByUser_IdAndRevokedFalse(userId);
+
+        if(refreshTokens.isEmpty()) return;
+
+        refreshTokens.forEach(refreshToken -> refreshToken.setRevoked(true));
+
+        refreshTokenRepository.saveAll(refreshTokens);
+        logger.info("All refresh tokens revoked successfully | userId={} | count={}", userId, refreshTokens.size());
+    }
+
+    @Override
+    @Transactional
+    public void revokeAllTokensExceptCurrentToken(Long userId, String currentRefreshToken) {
+        logger.info("Revoking all refresh tokens current refresh token | userId={}", userId);
+        List<RefreshToken> refreshTokens = refreshTokenRepository.findByUser_IdAndRevokedFalse(userId);
+
+        if(refreshTokens.isEmpty()) return;
+
+        refreshTokens.forEach(refreshToken -> {
+            if(!refreshToken.getToken().equals(currentRefreshToken)) {
+                refreshToken.setRevoked(true);
+            }
+        });
+
+        refreshTokenRepository.saveAll(refreshTokens);
+        logger.info("All refresh tokens revoked except current token successfully | userId={} | count={}",
+                userId, refreshTokens.size());
+    }
+
     private RefreshToken findByToken(String token) {
         return refreshTokenRepository.findByToken(token).orElseThrow(() -> {
             logger.debug("Invalid refresh token");
@@ -89,5 +125,19 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private String tokenPrefix(String token) {
         return (token != null) ? token.substring(0, 8) : null;
+    }
+
+    private void revokeOldRefreshTokenIfOwnedByUser(long userId, String oldRefreshToken) {
+        if(oldRefreshToken == null) return;
+
+        Optional<RefreshToken> optionalOldRefreshToken = refreshTokenRepository.findByToken(oldRefreshToken);
+
+        optionalOldRefreshToken.ifPresent(refreshToken -> {
+            if(refreshToken.getUser().getId().equals(userId)) {
+                refreshToken.setRevoked(true);
+                refreshTokenRepository.saveAndFlush(refreshToken);
+                logger.debug("Revoked old refresh token | userId={}", userId);
+            }
+        });
     }
 }

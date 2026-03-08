@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "tb_user")
+@Table(name = "tb_users")
 public class User extends AuditedEntity implements UserDetails {
     @Column(nullable = false, length = 60)
     private String name;
@@ -29,7 +29,7 @@ public class User extends AuditedEntity implements UserDetails {
     private String password;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "tb_role", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "tb_user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(value =  EnumType.STRING)
     @JdbcType(value = PostgreSQLEnumJdbcType.class)
     @Column(name = "role", nullable = false)

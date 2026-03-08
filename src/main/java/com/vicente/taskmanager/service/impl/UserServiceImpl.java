@@ -13,6 +13,7 @@ import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.repository.specification.UserSpecification;
 import com.vicente.taskmanager.dto.filter.UserFilterDTO;
+import com.vicente.taskmanager.service.RefreshTokenService;
 import com.vicente.taskmanager.service.UserService;
 import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.NonNull;
@@ -32,12 +33,15 @@ import java.util.Objects;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final EntityManager entityManager;
+    private final RefreshTokenService refreshTokenService;
     private static final Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
     private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, EntityManager entityManager, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, EntityManager entityManager,
+                           RefreshTokenService refreshTokenService, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.entityManager = entityManager;
+        this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -113,7 +117,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void changePassword(User authenticatedUser, PasswordUpdateRequestDTO passwordUpdateRequestDTO) {
+    public void changePassword(
+            User authenticatedUser, PasswordUpdateRequestDTO passwordUpdateRequestDTO, String currentRefreshToken) {
         logger.info("Starting changePassword user | authenticatedUserId={}", authenticatedUser.getId());
 
         if(!passwordEncoder.matches(
@@ -135,9 +140,11 @@ public class UserServiceImpl implements UserService {
 
         authenticatedUser.setPassword(passwordEncoder.encode(passwordUpdateRequestDTO.newPassword()));
 
-        logger.info("User password changed successfully. | authenticatedUserId={}", authenticatedUser.getId());
-
         userRepository.save(authenticatedUser);
+
+        refreshTokenService.revokeAllTokensExceptCurrentToken(authenticatedUser.getId(),  currentRefreshToken);
+
+        logger.info("User password changed successfully. | authenticatedUserId={}", authenticatedUser.getId());
     }
 
     @Override

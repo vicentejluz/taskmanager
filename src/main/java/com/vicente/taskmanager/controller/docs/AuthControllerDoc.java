@@ -98,7 +98,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<AccessTokenResponseDTO> login(LoginRequestDTO loginRequestDTO);
+    ResponseEntity<AccessTokenResponseDTO> login(LoginRequestDTO loginRequestDTO, String refreshToken);
 
     @Operation(
             summary = "Resend email verification link",

@@ -49,10 +49,11 @@ public class UserController  implements UserControllerDoc {
     @PatchMapping("/users/me/password")
     public ResponseEntity<Void> changePassword(
             @AuthenticationPrincipal User user,
-            @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO
+            @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO,
+            @CookieValue(value = "refreshToken", required = false) String refreshToken
     ) {
         logger.debug("PATCH /api/v1/users/password changePassword called | authenticatedUserId={}", user.getId());
-        userService.changePassword(user, passwordUpdateRequestDTO);
+        userService.changePassword(user, passwordUpdateRequestDTO, refreshToken);
         return ResponseEntity.noContent().build();
     }
 

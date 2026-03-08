@@ -102,7 +102,7 @@ public interface UserControllerDoc {
                             schema = @Schema(implementation = StandardError.class))
             )
     })
-    ResponseEntity<Void> changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO);
+    ResponseEntity<Void> changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO, String refreshToken);
 
     @Operation(
             summary = "Delete authenticated user",

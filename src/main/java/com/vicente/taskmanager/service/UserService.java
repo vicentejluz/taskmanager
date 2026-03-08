@@ -13,7 +13,7 @@ public interface UserService {
     UserAdminResponseDTO findByEmail(String email);
     PageResponseDTO<UserAdminResponseDTO> find(UserFilterDTO filter, Pageable pageable);
     UserUpdateResponseDTO update(User authenticatedUser, UserUpdateRequestDTO userUpdateRequestDTO);
-    void changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO);
+    void changePassword(User user, PasswordUpdateRequestDTO passwordUpdateRequestDTO, String currentRefreshToken);
     UserEnabledResponseDTO toggleUserEnabled(Long id);
     void delete(User user);
 }
