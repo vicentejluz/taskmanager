@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.security.filter;
 
 import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.security.service.TokenBlacklistService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
 import jakarta.servlet.FilterChain;
@@ -18,10 +19,12 @@ import java.io.IOException;
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
     private final TokenService tokenService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final UserDetailsServiceImpl userDetailsService;
 
-    SecurityFilter(TokenService tokenService, UserDetailsServiceImpl userDetailsService) {
+    SecurityFilter(TokenService tokenService, TokenBlacklistService tokenBlacklistService, UserDetailsServiceImpl userDetailsService) {
         this.tokenService = tokenService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.userDetailsService = userDetailsService;
     }
 
@@ -33,13 +36,13 @@ public class SecurityFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
             String token = retrieveToken(request);
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String subject = tokenService.validateToken(token);
+                String subject = tokenService.getClaims(token).getSubject();
                 if (subject != null) {
                     User user = (User) userDetailsService.loadUserByUsername(subject);
-
+                    String jti = tokenService.getClaims(token).getId();
                     if (user.getDeletedAt() == null &&
                             user.isAccountNonLocked() &&
-                            user.isEnabled()) {
+                            user.isEnabled() && !tokenBlacklistService.isBlacklisted(jti)) {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(user, null,
                                         user.getAuthorities());

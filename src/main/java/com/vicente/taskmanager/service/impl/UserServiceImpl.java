@@ -168,6 +168,7 @@ public class UserServiceImpl implements UserService {
             validateCanDisable(user);
             logger.info("User disabled by admin | id={}", id);
             user.setAccountStatus(AccountStatus.DISABLED_BY_ADMIN);
+            refreshTokenService.revokeAllTokens(id);
         }else {
             logger.info("User reactivated | id={}", id);
             user.setAccountStatus(AccountStatus.ACTIVE);

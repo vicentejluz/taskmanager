@@ -130,10 +130,13 @@ public class AuthController implements AuthControllerDoc {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @CookieValue(value = "refreshToken", required = false) String refreshToken,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal User user,
+            HttpServletRequest request
     ) {
         logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
-        authService.logout(refreshToken, user.getId());
+        String authorization = request.getHeader("Authorization");
+        String accessToken = authorization.substring("Bearer ".length());
+        authService.logout(refreshToken, accessToken, user.getId());
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .path("/api/v1")
                 .httpOnly(true)

@@ -423,5 +423,5 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<Void> logout(@Parameter(hidden = true) String token, User user);
+    ResponseEntity<Void> logout(@Parameter(hidden = true) String token, User user, HttpServletRequest request);
 }

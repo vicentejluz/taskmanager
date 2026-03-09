@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18.1-alpine3.23
+    image: postgres:18.3-alpine3.23
     container_name: postgres
     restart: unless-stopped
     environment:
@@ -11,14 +11,42 @@ services:
       - "5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
+    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    cpus: 0.5 # Limits CPU usage to 25% of a single CPU core
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"] # Command used by Docker to check if the container is healthy
+      interval: 15s # Time between each health check execution
+      timeout: 5s # Maximum time Docker waits for the health check command to respond
+      retries: 5 # Number of consecutive failures before marking the container as unhealthy
+      start_period: 10s # Initial delay before starting health checks (allows the service to boot)
+
+  db-redis:
+    image: redis:8.6.1-alpine3.23
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
+      # --requirepass ${REDIS_PASSWORD} # Require authentication before allowing commands
+      # --maxmemory 256mb # Limits Redis to using a maximum of 256MB of memory
+      # --maxmemory-policy allkeys-lru # Evicts the least recently used keys when memory limit is reached
+    ports:
+      - "6379:6379"
+    mem_limit: 312M # Limits the container to use a maximum of 312MB RAM
+    cpus: 0.2 # Limits CPU usage to 20% of a single CPU core
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"] # Command used by Docker to check if the container is healthy
+      interval: 15s # Time between each health check execution
+      timeout: 5s # Maximum time Docker waits for the health check command to respond
+      retries: 5 # Number of consecutive failures before marking the container as unhealthy
+      start_period: 10s # Initial delay before starting health checks (allows the service to boot)
 
   elasticsearch:
-      image: elasticsearch:9.3.0
+      image: elasticsearch:9.3.1
       container_name: elasticsearch
       restart: on-failure
       environment:
         discovery.type: single-node
         xpack.security.enabled: false # Disable security for local development
+        bootstrap.memory_lock: true # Prevents Elasticsearch memory from being swapped to disk
         ES_JAVA_OPTS: -Xms512m -Xmx512m
       ports:
         - "9200:9200"
@@ -26,15 +54,27 @@ services:
         - es_data:/usr/share/elasticsearch/data
       networks:
         - elk-network
-
+      mem_limit: 1G # Limits the container to use a maximum of 1G RAM
+      cpus: 1 # Limits CPU usage to 100% of a single CPU core
+      ulimits:
+        memlock:
+          soft: -1 # Soft limit: allows the process to lock unlimited memory
+          hard: -1 # Hard limit: maximum allowed locked memory
+      healthcheck:
+        test: [ "CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1" ] # Command used by Docker to check if the container is healthy
+        interval: 30s # Time between each health check execution
+        timeout: 10s # Maximum time Docker waits for the health check command to respond
+        retries: 5 # Number of consecutive failures before marking the container as unhealthy
+        start_period: 5s # Initial delay before starting health checks (allows the service to boot)
 
   logstash:
-      image: logstash:9.3.0
+      image: logstash:9.3.1
       container_name: logstash
       restart: on-failure
       platform: linux/amd64
       depends_on:
-        - elasticsearch
+        elasticsearch:
+          condition: service_healthy # Ensures this service starts only after the dependency is healthy
       environment:
         LS_JAVA_OPTS: -Xms256m -Xmx256m
       ports:
@@ -43,30 +83,29 @@ services:
         - ./logstash/pipeline:/usr/share/logstash/pipeline
       networks:
         - elk-network
+      mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+      cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
 
   kibana:
-    image: kibana:9.3.0
+    image: kibana:9.3.1
     container_name: kibana
     restart: on-failure
     depends_on:
-      - elasticsearch
+      elasticsearch:
+        condition: service_healthy # Ensures this service starts only after the dependency is healthy
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
       - "5601:5601"
     networks:
       - elk-network
+    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.29.2
     container_name: mailpit
-    restart: always
-    ports:
-      - "8025:8025" # 🌐 Web GUI
-      - "1025:1025" # 📮 SMTP
-    volumes:
-      - mailpit-data:/data  # 💾 Persistent storage for messages
-      - ./mailpit/certs:/certs
+    restart: on-failure
     environment:
       MP_SMTP_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}        # 👤 SMTP login credentials
       MP_UI_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}          # 🔑 Web UI login credentials
@@ -76,12 +115,20 @@ services:
       MP_DATABASE: /data
       MP_MAX_MESSAGES: 3000                # 💌 Max number of stored messages
       MP_VERBOSE: true                      # 🪵 Enable verbose logging
+    ports:
+      - "8025:8025" # 🌐 Web GUI
+      - "1025:1025" # 📮 SMTP
+    volumes:
+      - mailpit-data:/data  # 💾 Persistent storage for messages
+      - ./mailpit/certs:/certs
+    mem_limit: 128M # Limits the container to use a maximum of 128MB RAM
+    cpus: 0.25 # Limits CPU usage to 25% of a single CPU core
     healthcheck:
-      test: [ "CMD", "/mailpit", "readyz" ]
-      interval: 15s
-      start_period: 10s
-      timeout: 30s
-      retries: 3
+      test: [ "CMD", "/mailpit", "readyz" ] # Command used by Docker to check if the container is healthy
+      interval: 15s # Time between each health check execution
+      timeout: 30s # Maximum time Docker waits for the health check command to respond
+      retries: 3 # Number of consecutive failures before marking the container as unhealthy
+      start_period: 10s # Initial delay before starting health checks (allows the service to boot)
 
 volumes:
   pg-data:

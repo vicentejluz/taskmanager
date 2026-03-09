@@ -14,6 +14,6 @@ public interface AuthService {
     void verifyEmail(String token);
     void validateToken(String token);
     void passwordReset(String token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
-    void logout(String token, Long userId);
+    void logout(String refreshToken, String accessToken, Long userId);
     TokenResponseDTO refreshToken(String token);
 }

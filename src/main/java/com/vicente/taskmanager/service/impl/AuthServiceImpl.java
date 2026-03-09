@@ -14,6 +14,7 @@ import com.vicente.taskmanager.domain.enums.AccountStatus;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
+import com.vicente.taskmanager.security.service.TokenBlacklistService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import com.vicente.taskmanager.service.EmailService;
@@ -39,6 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final VerificationTokenService verificationTokenService;
     private final RefreshTokenService refreshTokenService;
+    private final TokenBlacklistService tokenBlacklistService;
     private final TokenService tokenService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
@@ -50,8 +52,10 @@ public class AuthServiceImpl implements AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     public AuthServiceImpl(
-            UserRepository userRepository, VerificationTokenService verificationTokenService,
+            UserRepository userRepository,
+            VerificationTokenService verificationTokenService,
             RefreshTokenService refreshTokenService,
+            TokenBlacklistService tokenBlacklistService,
             PasswordEncoder passwordEncoder,
             TokenService tokenService, EmailService emailService,
             EntityManager entityManager,
@@ -62,6 +66,7 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository = userRepository;
         this.verificationTokenService = verificationTokenService;
         this.refreshTokenService = refreshTokenService;
+        this.tokenBlacklistService = tokenBlacklistService;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.emailService = emailService;
@@ -209,8 +214,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void logout(String token, Long userId) {
-        refreshTokenService.revokeToken(token, userId);
+    public void logout(String refreshToken, String accessToken, Long userId) {
+        refreshTokenService.revokeToken(refreshToken, userId);
+        tokenBlacklistService.blacklistToken(accessToken);
     }
 
     @Override
