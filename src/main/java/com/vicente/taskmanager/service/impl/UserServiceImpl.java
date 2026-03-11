@@ -125,7 +125,7 @@ public class UserServiceImpl implements UserService {
                 passwordUpdateRequestDTO.oldPassword(),
                 authenticatedUser.getPassword())
         ) {
-            logger.debug("Old password does not match user | authenticatedUser={}", authenticatedUser.getId());
+            logger.debug("Old password does not match user | authenticatedUserId={}", authenticatedUser.getId());
             throw new InvalidOldPasswordException("Old password does not match.");
         }
 
@@ -139,8 +139,9 @@ public class UserServiceImpl implements UserService {
         }
 
         authenticatedUser.setPassword(passwordEncoder.encode(passwordUpdateRequestDTO.newPassword()));
+        authenticatedUser.incrementTokenVersion();
 
-        userRepository.save(authenticatedUser);
+        userRepository.saveAndFlush(authenticatedUser);
 
         refreshTokenService.revokeAllTokensExceptCurrentToken(authenticatedUser.getId(),  currentRefreshToken);
 
@@ -154,21 +155,20 @@ public class UserServiceImpl implements UserService {
         User user = getUser(id);
 
         if(user.getDeletedAt() != null){
-            logger.debug("Cannot toggle a deleted user");
+            logger.debug("Cannot toggle a deleted user | id={}", id);
             throw new InvalidUserStateTransitionException("Cannot toggle a deleted user");
         }
 
         if(user.getAccountStatus() != AccountStatus.ACTIVE && user.getAccountStatus() != AccountStatus.DISABLED_BY_ADMIN){
-            logger.debug("Cannot toggle user with status | status={}", user.getAccountStatus());
+            logger.debug("Cannot toggle user with status | id={} status={}", id, user.getAccountStatus());
             throw new InvalidUserStateTransitionException(
                     "Invalid state transition from status: " + user.getAccountStatus());
         }
 
         if(user.isEnabled()) {
-            validateCanDisable(user);
+            validateUserIsNotAdmin(user);
             logger.info("User disabled by admin | id={}", id);
-            user.setAccountStatus(AccountStatus.DISABLED_BY_ADMIN);
-            refreshTokenService.revokeAllTokens(id);
+            disableUser(id, user);
         }else {
             logger.info("User reactivated | id={}", id);
             user.setAccountStatus(AccountStatus.ACTIVE);
@@ -186,16 +186,19 @@ public class UserServiceImpl implements UserService {
     public void delete(User user) {
         logger.info("Starting delete user | id={}", user.getId());
 
-        validateCanDisable(user);
+        validateUserIsNotAdmin(user);
 
         user.setDeletedAt(OffsetDateTime.now());
+        user.incrementTokenVersion();
 
         userRepository.save(user);
 
-        logger.info("User deleted successfully | id={}", user.getId());
+        refreshTokenService.revokeAllTokens(user.getId());
+
+        logger.info("User deleted successfully | id={} deletedAt={}", user.getId(), user.getDeletedAt());
     }
 
-    private void validateCanDisable(User user) {
+    private void validateUserIsNotAdmin(User user) {
         boolean isAdmin = user.getRoles().contains(UserRole.ADMIN);
 
         if (isAdmin) {
@@ -203,6 +206,11 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    private void disableUser(Long id, User user) {
+        user.setAccountStatus(AccountStatus.DISABLED_BY_ADMIN);
+        user.incrementTokenVersion();
+        refreshTokenService.revokeAllTokens(id);
+    }
 
     private @NonNull User getUser(Long id) {
         return userRepository.findById(id).orElseThrow(() -> {

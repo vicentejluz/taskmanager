@@ -39,6 +39,7 @@ public class TokenService {
                 .issuer(this.issuer)
                 .id(UUID.randomUUID().toString())
                 .claim("userId", user.getId())
+                .claim("tokenVersion", user.getTokenVersion())
                 .subject(user.getEmail())
                 .issuedAt(new Date())
                 .expiration(Date.from(this.expirationDate()))
@@ -59,7 +60,6 @@ public class TokenService {
     }
 
     private Claims parseToken(String token) {
-        Jwts.parser().requireIssuer(this.issuer).verifyWith(this.key).build();
         return jwtParser.parseSignedClaims(token).getPayload();
     }
 

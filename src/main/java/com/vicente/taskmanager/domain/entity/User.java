@@ -49,6 +49,9 @@ public class User extends AuditedEntity implements UserDetails {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
+    @Column(name = "token_version", nullable = false)
+    private long tokenVersion;
+
     public User() {
     }
 
@@ -57,6 +60,7 @@ public class User extends AuditedEntity implements UserDetails {
         this.email = email == null ? null : email.toLowerCase().trim();
         this.password = password;
         this.failedAttempts = 0;
+        this.tokenVersion = 0L;
     }
 
     @Override
@@ -96,6 +100,14 @@ public class User extends AuditedEntity implements UserDetails {
 
     public void setRoles(Set<UserRole> roles) {
         this.roles = roles;
+    }
+
+    public long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void incrementTokenVersion() {
+        this.tokenVersion++;
     }
 
     @Override

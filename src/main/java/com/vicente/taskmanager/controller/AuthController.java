@@ -8,6 +8,7 @@ import com.vicente.taskmanager.dto.response.MessageResponseDTO;
 import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.domain.enums.TokenType;
+import com.vicente.taskmanager.security.TokenExtractor;
 import com.vicente.taskmanager.service.AuthService;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -134,8 +135,7 @@ public class AuthController implements AuthControllerDoc {
             HttpServletRequest request
     ) {
         logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
-        String authorization = request.getHeader("Authorization");
-        String accessToken = authorization.substring("Bearer ".length());
+        String accessToken = TokenExtractor.extractAccessToken(request);
         authService.logout(refreshToken, accessToken, user.getId());
         ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
                 .path("/api/v1")

@@ -14,7 +14,7 @@ import com.vicente.taskmanager.domain.enums.AccountStatus;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
-import com.vicente.taskmanager.security.service.TokenBlacklistService;
+import com.vicente.taskmanager.security.service.AuthTokenStoreService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import com.vicente.taskmanager.service.EmailService;
@@ -40,7 +40,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final VerificationTokenService verificationTokenService;
     private final RefreshTokenService refreshTokenService;
-    private final TokenBlacklistService tokenBlacklistService;
+    private final AuthTokenStoreService authTokenStoreService;
     private final TokenService tokenService;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
@@ -55,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
             UserRepository userRepository,
             VerificationTokenService verificationTokenService,
             RefreshTokenService refreshTokenService,
-            TokenBlacklistService tokenBlacklistService,
+            AuthTokenStoreService authTokenStoreService,
             PasswordEncoder passwordEncoder,
             TokenService tokenService, EmailService emailService,
             EntityManager entityManager,
@@ -66,7 +66,7 @@ public class AuthServiceImpl implements AuthService {
         this.userRepository = userRepository;
         this.verificationTokenService = verificationTokenService;
         this.refreshTokenService = refreshTokenService;
-        this.tokenBlacklistService = tokenBlacklistService;
+        this.authTokenStoreService = authTokenStoreService;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.emailService = emailService;
@@ -125,6 +125,8 @@ public class AuthServiceImpl implements AuthService {
             if(!user.isAccountNonLocked()) {
                 logger.debug("User account locked | userId={}", user.getId());
                 refreshTokenService.revokeAllTokens(user.getId());
+                user.incrementTokenVersion();
+                userRepository.save(user);
                 throw new AccountLockedException("User account is locked. Try again later.", user.getLockUntil());
             }
 
@@ -201,6 +203,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPassword(passwordEncoder.encode(passwordRequestDTO.password()));
 
         user.resetFailedAttempts();
+        user.incrementTokenVersion();
 
         userRepository.saveAndFlush(user);
 
@@ -216,7 +219,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void logout(String refreshToken, String accessToken, Long userId) {
         refreshTokenService.revokeToken(refreshToken, userId);
-        tokenBlacklistService.blacklistToken(accessToken);
+        authTokenStoreService.blacklistToken(accessToken);
     }
 
     @Override
@@ -232,6 +235,7 @@ public class AuthServiceImpl implements AuthService {
                 });
 
         String accessToken = tokenService.generateToken(user);
+
         logger.info("User refreshed token successfully | userId={}", user.getId());
         return new TokenResponseDTO(accessToken, refreshToken.getToken());
     }

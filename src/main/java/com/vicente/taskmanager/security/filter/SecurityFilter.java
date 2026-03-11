@@ -1,9 +1,11 @@
 package com.vicente.taskmanager.security.filter;
 
 import com.vicente.taskmanager.domain.entity.User;
-import com.vicente.taskmanager.security.service.TokenBlacklistService;
+import com.vicente.taskmanager.security.TokenExtractor;
+import com.vicente.taskmanager.security.service.AuthTokenStoreService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,12 +21,12 @@ import java.io.IOException;
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
     private final TokenService tokenService;
-    private final TokenBlacklistService tokenBlacklistService;
+    private final AuthTokenStoreService authTokenStoreService;
     private final UserDetailsServiceImpl userDetailsService;
 
-    SecurityFilter(TokenService tokenService, TokenBlacklistService tokenBlacklistService, UserDetailsServiceImpl userDetailsService) {
+    SecurityFilter(TokenService tokenService, AuthTokenStoreService authTokenStoreService, UserDetailsServiceImpl userDetailsService) {
         this.tokenService = tokenService;
-        this.tokenBlacklistService = tokenBlacklistService;
+        this.authTokenStoreService = authTokenStoreService;
         this.userDetailsService = userDetailsService;
     }
 
@@ -34,32 +36,28 @@ public class SecurityFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-            String token = retrieveToken(request);
+            String token = TokenExtractor.extractAccessToken(request);
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                String subject = tokenService.getClaims(token).getSubject();
-                if (subject != null) {
-                    User user = (User) userDetailsService.loadUserByUsername(subject);
-                    String jti = tokenService.getClaims(token).getId();
-                    if (user.getDeletedAt() == null &&
+                Claims claims = tokenService.getClaims(token);
+                if (claims != null) {
+                    String jti = claims.getId();
+                    if(!authTokenStoreService.isBlacklisted(jti)){
+                        String subject = claims.getSubject();
+                        Long tokenVersion = claims.get("tokenVersion", Long.class);
+                        User user = (User) userDetailsService.loadUserByUsername(subject);
+                        if (user.getDeletedAt() == null &&
                             user.isAccountNonLocked() &&
-                            user.isEnabled() && !tokenBlacklistService.isBlacklisted(jti)) {
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(user, null,
-                                        user.getAuthorities());
+                            user.isEnabled() && tokenVersion.equals(user.getTokenVersion())) {
+                            UsernamePasswordAuthenticationToken authentication =
+                                    new UsernamePasswordAuthenticationToken(user, null,
+                                            user.getAuthorities());
 
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        }
                     }
                 }
             }
         filterChain.doFilter(request, response);
-    }
-
-    private String retrieveToken(HttpServletRequest request) {
-        String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
-            return authorizationHeader.substring("Bearer ".length());
-        }
-        return null;
     }
 }
