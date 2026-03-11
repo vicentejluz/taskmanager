@@ -60,6 +60,22 @@ public class EmailServiceImpl implements EmailService {
         sendSecurityNotificationEmail(email, subject, message, ipAddress);
     }
 
+    @Async
+    @Override
+    public void sendVerificationEmailSuccessEmail(String email, String ipAddress) {
+        String subject = "Your Email Has Been Verified – You Can Now Log In";
+        String message =
+                """
+                Hello,
+        
+                We are pleased to inform you that your email address has been successfully verified.
+                You can now log in to your account using your credentials.
+        
+                If you did not perform this action, please contact our support team immediately.
+                """;
+        sendSecurityNotificationEmail(email, subject, message, ipAddress);
+    }
+
     private void sendActionEmail(String email, String token, String subject, String path, String message) {
         try {
             String actionUrl = UriComponentsBuilder

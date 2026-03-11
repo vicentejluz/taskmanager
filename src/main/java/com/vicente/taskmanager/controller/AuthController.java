@@ -83,9 +83,12 @@ public class AuthController implements AuthControllerDoc {
 
     @Override
     @GetMapping("/verify-email")
-    public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token) {
+    public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token, HttpServletRequest request) {
         logger.debug("GET /api/v1/auth/verify-email verify email called");
-        authService.verifyEmail(token);
+        String ipAddress = request.getHeader("X-Forwarded-For") != null
+                ? request.getHeader("X-Forwarded-For").split(",")[0].trim()
+                : request.getRemoteAddr();
+        authService.verifyEmail(token, ipAddress);
         return ResponseEntity.ok(new MessageResponseDTO(
                 "Email has been successfully verified. You can now log in"));
     }

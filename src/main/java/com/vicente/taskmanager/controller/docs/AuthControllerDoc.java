@@ -222,7 +222,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<MessageResponseDTO> verifyEmail(String token);
+    ResponseEntity<MessageResponseDTO> verifyEmail(String token, HttpServletRequest request);
 
     @Operation(
             summary = "Validate password reset token",

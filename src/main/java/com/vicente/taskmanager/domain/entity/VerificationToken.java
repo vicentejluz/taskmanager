@@ -26,12 +26,6 @@ public class VerificationToken extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false)
-    private boolean used;
-
-    @Column(nullable = false)
-    private boolean revoked;
-
     public VerificationToken() {
     }
 
@@ -40,8 +34,6 @@ public class VerificationToken extends BaseEntity {
         this.type = type;
         this.expiresAt = expiresAt;
         this.user = user;
-        this.used = false;
-        this.revoked = false;
     }
 
     public String getToken() {
@@ -56,10 +48,6 @@ public class VerificationToken extends BaseEntity {
         return user;
     }
 
-    public boolean isUsed() {
-        return used;
-    }
-
     public void setToken(String token) {
         this.token = token;
     }
@@ -70,18 +58,6 @@ public class VerificationToken extends BaseEntity {
 
     public void setUser(User user) {
         this.user = user;
-    }
-
-    public void setUsed(boolean used) {
-        this.used = used;
-    }
-
-    public boolean isRevoked() {
-        return revoked;
-    }
-
-    public void setRevoked(boolean revoked) {
-        this.revoked = revoked;
     }
 
     public boolean isExpired(){

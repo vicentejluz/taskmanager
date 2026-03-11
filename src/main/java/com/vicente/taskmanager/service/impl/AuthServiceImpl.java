@@ -155,7 +155,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void verifyEmail(String token) {
+    public void verifyEmail(String token, String ipAddress) {
         logger.info("Starting email verification process | token={}", token.substring(0,8));
 
         VerificationToken verificationToken = verificationTokenService.findByToken(token);
@@ -173,6 +173,7 @@ public class AuthServiceImpl implements AuthService {
 
         verificationTokenService.consumeToken(verificationToken);
 
+        emailService.sendVerificationEmailSuccessEmail(user.getEmail(), ipAddress);
         logger.info("Email verified successfully | userId={} | email={}", user.getId(), user.getEmail());
     }
 

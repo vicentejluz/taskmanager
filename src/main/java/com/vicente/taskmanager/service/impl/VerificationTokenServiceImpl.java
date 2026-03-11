@@ -35,8 +35,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
         logger.debug("Consuming token | tokenId={} | userId={}",
                 verificationToken.getId(), verificationToken.getUser().getId());
 
-        markTokenAsConsumed(verificationToken);
-        verificationTokenRepository.save(verificationToken);
+        verificationTokenRepository.delete(verificationToken);
 
         logger.info("Token consumed successfully | userId={} | tokenId={}",
                 verificationToken.getUser().getId(), verificationToken.getId());
@@ -50,7 +49,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
             verificationToken = generateVerificationToken(user, tokenType);
         } catch (DataIntegrityViolationException ex) {
             logger.debug("Token already exists. Reusing active token | userId={}", user.getId());
-            verificationToken = verificationTokenRepository.findByUser_IdAndTypeAndRevokedFalse(
+            verificationToken = verificationTokenRepository.findByUser_IdAndType(
                             user.getId(), tokenType)
                     .orElseThrow(() -> new IllegalStateException("Active token expected but not found"));
         }
@@ -60,7 +59,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
     @Override
     @Transactional
     public VerificationToken getOrCreateActiveVerificationToken(User user, TokenType tokenType) {
-        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByUser_IdAndTypeAndRevokedFalse(
+        Optional<VerificationToken> optionalToken = verificationTokenRepository.findByUser_IdAndType(
                                 user.getId(), tokenType);
 
         if (optionalToken.isEmpty()) {
@@ -68,16 +67,16 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
         }
 
         VerificationToken verificationToken = optionalToken.get();
-        logger.debug("Existing verification token found | userId={} | used={} | expired={} | revoked={}",
-                user.getId(), verificationToken.isUsed(), verificationToken.isExpired(), verificationToken.isRevoked());
+        logger.debug("Existing verification token found | userId={} expired={}",
+                user.getId(), verificationToken.isExpired());
 
-        if (!verificationToken.isExpired() && !verificationToken.isUsed()) {
+        if (!verificationToken.isExpired()) {
             logger.debug("Reusing existing valid verification token | userId={}", user.getId());
             return verificationToken;
         }
 
-        logger.debug("Existing verification token is no longer valid. Marking as revoked | userId={}", user.getId());
-        verificationToken.setRevoked(true);
+        logger.debug("Existing verification token is no longer valid | userId={}", user.getId());
+        verificationTokenRepository.delete(verificationToken);
 
         entityManager.flush();
 
@@ -95,7 +94,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
 
     @Override
     public void validateTokenForConsumption(VerificationToken verificationToken) {
-        if (verificationToken.isUsed() || verificationToken.isExpired() || verificationToken.isRevoked()) {
+        if (verificationToken.isExpired()) {
             logger.debug("Invalid token consumption attempt | tokenId={}", verificationToken.getId());
             throw new VerificationTokenException("Invalid or expired token");
         }
@@ -107,10 +106,5 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
                 OffsetDateTime.now().plusHours(tokenType.getExpirationHours()), user);
 
         return verificationTokenRepository.save(verificationToken);
-    }
-
-    private void markTokenAsConsumed(VerificationToken verificationToken) {
-        verificationToken.setUsed(true);
-        verificationToken.setRevoked(true);
     }
 }

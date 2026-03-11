@@ -11,7 +11,7 @@ public interface AuthService {
     RegisterUserResponseDTO register(RegisterUserRequestDTO registerUserRequest);
     TokenResponseDTO login(LoginRequestDTO loginRequestDTO, String oldRefreshToken);
     void sendTokenEmail(String email, TokenType tokeType);
-    void verifyEmail(String token);
+    void verifyEmail(String token, String ipAddress);
     void validateToken(String token);
     void passwordReset(String token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
     void logout(String refreshToken, String accessToken, Long userId);
