@@ -3,12 +3,15 @@ package com.vicente.taskmanager.service.impl;
 import com.vicente.taskmanager.domain.entity.RefreshToken;
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.exception.RefreshTokenException;
+import com.vicente.taskmanager.exception.UserNotFoundException;
 import com.vicente.taskmanager.repository.RefreshTokenRepository;
+import com.vicente.taskmanager.repository.UserRepository;
 import com.vicente.taskmanager.service.RefreshTokenService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
@@ -19,48 +22,53 @@ import java.util.UUID;
 @Service
 public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
     private final long refreshExpiration;
     private static final Logger logger = LoggerFactory.getLogger(RefreshTokenServiceImpl.class);
 
     public RefreshTokenServiceImpl(
-            RefreshTokenRepository refreshTokenRepository,
+            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
             @Value("${security.refresh.token.expiration.days}") long refreshExpiration
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
+        this.userRepository = userRepository;
         this.refreshExpiration = refreshExpiration;
     }
 
     @Override
     @Transactional
     public String create(User user, String oldRefreshToken) {
-        revokeOldRefreshTokenIfOwnedByUser(user.getId(), oldRefreshToken);
-        String token = UUID.randomUUID().toString();
-        OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(refreshExpiration);
-        RefreshToken refreshToken = new RefreshToken(token, expiresAt, user);
+        logger.info("Creating refresh token (login flow) | userId={}", user.getId());
 
-        logger.info("Created refresh token | userId={}", user.getId());
-        refreshTokenRepository.save(refreshToken);
-        return token;
+        revokeOldRefreshTokenIfOwnedByUser(user.getId(), oldRefreshToken);
+        return createNewToken(user);
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public RefreshToken validate(String token) {
-        logger.info("Validating refresh token | tokenPrefix={}", tokenPrefix(token));
-        RefreshToken refreshToken = findByToken(token);
+    @Transactional
+    public String create(User user, RefreshToken oldRefreshToken) {
+        logger.info("Creating refresh token (rotation flow) | userId={}", user.getId());
 
-        if(refreshToken.isRevoked()){
-            logger.debug("Refresh token has been revoked | tokenPrefix={}", tokenPrefix(token));
-            throw new RefreshTokenException("Refresh token is revoked!");
+        if(oldRefreshToken != null) {
+            logger.debug("Revoking previous refresh token | tokenId={} | userId={}",
+                    oldRefreshToken.getId(), user.getId());
+            oldRefreshToken.setRevoked(true);
         }
 
+        return createNewToken(user);
+    }
+
+
+    @Override
+    public void validate(RefreshToken refreshToken) {
+        logger.info("Validating refresh token | tokenPrefix={}", tokenPrefix(refreshToken.getToken()));
+
         if(refreshToken.getExpiresAt().isBefore(OffsetDateTime.now())){
-            logger.debug("Expired refresh token | tokenPrefix={}", tokenPrefix(token));
+            logger.debug("Expired refresh token | tokenPrefix={}", tokenPrefix(refreshToken.getToken()));
             throw new RefreshTokenException("Refresh token is expired!");
         }
 
-        logger.info("Refresh token validated | tokenPrefix={}", tokenPrefix(token));
-        return refreshToken;
+        logger.info("Refresh token validated | tokenPrefix={}", tokenPrefix(refreshToken.getToken()));
     }
 
     @Override
@@ -116,15 +124,53 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
                 userId, refreshTokens.size());
     }
 
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleReuseAttack(Long userId) {
+
+        logger.warn("Refresh token reuse detected | userId={}", userId);
+
+        User user = userRepository.findById(userId).orElseThrow(() -> {
+            logger.debug("Invalid refresh token | userId={}", userId);
+            return new UserNotFoundException("User not found");
+        });
+
+        revokeAllTokens(userId);
+
+        user.incrementTokenVersion();
+
+        userRepository.saveAndFlush(user);
+    }
+
+    @Override
+    @Transactional
+    public RefreshToken findByTokenForUpdate(String token) {
+        return refreshTokenRepository.findByTokenForUpdate(token).orElseThrow(() -> {
+            logger.debug("Invalid refresh token");
+            return new RefreshTokenException("Refresh token invalid!");
+        });
+    }
+
     private RefreshToken findByToken(String token) {
         return refreshTokenRepository.findByToken(token).orElseThrow(() -> {
-            logger.debug("Invalid refresh token");
+            logger.debug("Invalid refresh token | tokenPrefix={}", tokenPrefix(token));
             return new RefreshTokenException("Refresh token invalid!");
         });
     }
 
     private String tokenPrefix(String token) {
         return (token != null) ? token.substring(0, 8) : null;
+    }
+
+    private String createNewToken(User user) {
+        String token = UUID.randomUUID().toString();
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(refreshExpiration);
+        RefreshToken refreshToken = new RefreshToken(token, expiresAt, user);
+
+        logger.info("Refresh token created successfully | tokenId={} | userId={} | expiresAt={}",
+                refreshToken.getId(), user.getId(), expiresAt);
+        refreshTokenRepository.save(refreshToken);
+        return token;
     }
 
     private void revokeOldRefreshTokenIfOwnedByUser(long userId, String oldRefreshToken) {
@@ -136,7 +182,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             if(refreshToken.getUser().getId().equals(userId)) {
                 refreshToken.setRevoked(true);
                 refreshTokenRepository.saveAndFlush(refreshToken);
-                logger.debug("Revoked old refresh token | userId={}", userId);
+                logger.debug("Previous refresh token revoked | tokenId={} | userId={}",
+                        refreshToken.getId(), userId);
             }
         });
     }

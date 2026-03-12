@@ -224,21 +224,29 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenResponseDTO refreshToken(String token) {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
                 (token != null) ? token.substring(0,8) : null);
-        RefreshToken refreshToken = refreshTokenService.validate(token);
 
-        User user = userRepository.findById(refreshToken.getUser().getId()).orElseThrow(() -> {
-                logger.debug("Invalid refresh token | userId={}", refreshToken.getUser().getId());
-                return new UserNotFoundException("User not found");
-                });
+        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(token);
+
+        if(oldRefreshToken.isRevoked()){
+            logger.debug("Refresh token has been revoked");
+            refreshTokenService.handleReuseAttack(oldRefreshToken.getUser().getId());
+            throw new RefreshTokenException("Refresh token reuse detected!");
+        }
+
+        refreshTokenService.validate(oldRefreshToken);
+
+        User user = oldRefreshToken.getUser();
 
         String accessToken = tokenService.generateToken(user);
 
+        String refreshToken = refreshTokenService.create(user, oldRefreshToken);
+
         logger.info("User refreshed token successfully | userId={}", user.getId());
-        return new TokenResponseDTO(accessToken, refreshToken.getToken());
+        return new TokenResponseDTO(accessToken, refreshToken);
     }
 
     private void validateUserForTokenRequest(TokenType tokenType, User user) {

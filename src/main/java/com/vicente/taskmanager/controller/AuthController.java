@@ -28,6 +28,7 @@ import java.time.Duration;
 public class AuthController implements AuthControllerDoc {
     private final AuthService authService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     public AuthController(AuthService authService) {
         this.authService = authService;
@@ -52,12 +53,7 @@ public class AuthController implements AuthControllerDoc {
     ) {
         logger.debug("POST /api/v1/auth/login login called | email={}", loginRequestDTO.email());
         TokenResponseDTO tokenResponseDTO = authService.login(loginRequestDTO, refreshToken);
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", tokenResponseDTO.refreshToken())
-                .path("/api/v1")
-                .httpOnly(true)
-                .sameSite("Strict")
-                .maxAge(Duration.ofDays(12))
-                .build();
+        ResponseCookie cookie = getResponseCookie(tokenResponseDTO.refreshToken(), Duration.ofDays(12));
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(accessToken);
@@ -85,9 +81,7 @@ public class AuthController implements AuthControllerDoc {
     @GetMapping("/verify-email")
     public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token, HttpServletRequest request) {
         logger.debug("GET /api/v1/auth/verify-email verify email called");
-        String ipAddress = request.getHeader("X-Forwarded-For") != null
-                ? request.getHeader("X-Forwarded-For").split(",")[0].trim()
-                : request.getRemoteAddr();
+        String ipAddress = getClientIp(request);
         authService.verifyEmail(token, ipAddress);
         return ResponseEntity.ok(new MessageResponseDTO(
                 "Email has been successfully verified. You can now log in"));
@@ -109,9 +103,7 @@ public class AuthController implements AuthControllerDoc {
             HttpServletRequest request
     ) {
         logger.debug("PATCH /api/v1/auth/password-reset reset password called");
-        String ipAddress = request.getHeader("X-Forwarded-For") != null
-                ? request.getHeader("X-Forwarded-For").split(",")[0].trim()
-                : request.getRemoteAddr();
+        String ipAddress = getClientIp(request);
         authService.passwordReset(token, passwordRequestDTO, ipAddress);
         return ResponseEntity.ok(new MessageResponseDTO(
                 "Your password has been reset successfully. You can now log in with your new password."));
@@ -126,8 +118,10 @@ public class AuthController implements AuthControllerDoc {
     ) {
         logger.debug("POST /api/v1/auth/refresh refresh token called");
         TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken);
+        ResponseCookie cookie = getResponseCookie(tokenResponseDTO.refreshToken(), Duration.ofDays(12));
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
-        return ResponseEntity.ok(accessToken);
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(accessToken);
     }
 
     @Override
@@ -140,14 +134,24 @@ public class AuthController implements AuthControllerDoc {
         logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
         String accessToken = TokenExtractor.extractAccessToken(request);
         authService.logout(refreshToken, accessToken, user.getId());
-        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
-                .path("/api/v1")
-                .httpOnly(true)
-                .sameSite("Strict")
-                .maxAge(0)
-                .build();
+        ResponseCookie cookie = getResponseCookie("", Duration.ZERO);
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .build();
+    }
+
+    private ResponseCookie getResponseCookie(String value, Duration duration) {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
+                .path("/api/v1")
+                .httpOnly(true)
+                .sameSite("Strict")
+                .maxAge(duration)
+                .build();
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        return request.getHeader("X-Forwarded-For") != null
+                ? request.getHeader("X-Forwarded-For").split(",")[0].trim()
+                : request.getRemoteAddr();
     }
 }
