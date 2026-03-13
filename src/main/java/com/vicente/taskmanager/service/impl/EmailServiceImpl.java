@@ -76,6 +76,28 @@ public class EmailServiceImpl implements EmailService {
         sendSecurityNotificationEmail(email, subject, message, ipAddress);
     }
 
+    @Async
+    @Override
+    public void sendSecurityAlert(String email, String ipAddress) {
+        String subject = "Security Alert: Suspicious Login Activity Detected";
+        String message =
+                """
+                Hello,
+                
+                We detected suspicious activity involving your login session.
+                
+                For your security, all active sessions have been terminated and you have been signed out of your account.
+                
+                If this action was not performed by you, we recommend that you reset your password immediately.
+                
+                If you recently logged in from another device, you can simply log in again.
+                
+                Stay safe,
+                Security Team
+                """;
+        sendSecurityNotificationEmail(email, subject, message, ipAddress);
+    }
+
     private void sendActionEmail(String email, String token, String subject, String path, String message) {
         try {
             String actionUrl = UriComponentsBuilder

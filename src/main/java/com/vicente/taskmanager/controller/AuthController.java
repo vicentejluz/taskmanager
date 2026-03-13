@@ -22,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.time.Duration;
+import java.util.UUID;
 
 @RestController
 @RequestMapping(value = "/api/v1/auth")
@@ -79,7 +80,7 @@ public class AuthController implements AuthControllerDoc {
 
     @Override
     @GetMapping("/verify-email")
-    public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") String token, HttpServletRequest request) {
+    public ResponseEntity<MessageResponseDTO> verifyEmail(@RequestParam("token") UUID token, HttpServletRequest request) {
         logger.debug("GET /api/v1/auth/verify-email verify email called");
         String ipAddress = getClientIp(request);
         authService.verifyEmail(token, ipAddress);
@@ -89,7 +90,7 @@ public class AuthController implements AuthControllerDoc {
 
     @Override
     @GetMapping("/password-reset")
-    public ResponseEntity<MessageResponseDTO> validateToken(@RequestParam("token") String token) {
+    public ResponseEntity<MessageResponseDTO> validateToken(@RequestParam("token") UUID token) {
         logger.debug("GET /api/v1/auth/password-reset reset password called");
         authService.validateToken(token);
         return ResponseEntity.ok(new MessageResponseDTO("Token is valid. You can now reset your password"));
@@ -98,7 +99,7 @@ public class AuthController implements AuthControllerDoc {
     @Override
     @PatchMapping("/password-reset")
     public ResponseEntity<MessageResponseDTO> passwordReset(
-            @RequestParam("token") String token,
+            @RequestParam("token") UUID token,
             @Valid @RequestBody PasswordRequestDTO  passwordRequestDTO,
             HttpServletRequest request
     ) {
@@ -114,10 +115,12 @@ public class AuthController implements AuthControllerDoc {
     public ResponseEntity<AccessTokenResponseDTO> refreshToken(
             @Parameter(hidden = true)
             @CookieValue(value = "refreshToken", required = false)
-            String refreshToken
+            String refreshToken,
+            HttpServletRequest request
     ) {
         logger.debug("POST /api/v1/auth/refresh refresh token called");
-        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken);
+        String ipAddress = getClientIp(request);
+        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken, ipAddress);
         ResponseCookie cookie = getResponseCookie(tokenResponseDTO.refreshToken(), Duration.ofDays(12));
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())

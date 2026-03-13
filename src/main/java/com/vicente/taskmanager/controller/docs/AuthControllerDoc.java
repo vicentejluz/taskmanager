@@ -17,6 +17,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 
+import java.util.UUID;
+
 @Tag(name = "Authentication", description = "Authentication endpoints")
 public interface AuthControllerDoc {
     @Operation(
@@ -222,7 +224,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<MessageResponseDTO> verifyEmail(String token, HttpServletRequest request);
+    ResponseEntity<MessageResponseDTO> verifyEmail(UUID token, HttpServletRequest request);
 
     @Operation(
             summary = "Validate password reset token",
@@ -272,7 +274,7 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<MessageResponseDTO> validateToken(String token);
+    ResponseEntity<MessageResponseDTO> validateToken(UUID token);
 
     @Operation(
             summary = "Reset user password",
@@ -324,7 +326,7 @@ public interface AuthControllerDoc {
             )
     })
     ResponseEntity<MessageResponseDTO> passwordReset(
-            String token,
+            UUID token,
             PasswordRequestDTO passwordRequestDTO,
             HttpServletRequest request);
 
@@ -376,7 +378,9 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<AccessTokenResponseDTO> refreshToken(@Parameter(hidden = true) String refreshToken);
+    ResponseEntity<AccessTokenResponseDTO> refreshToken(
+            @Parameter(hidden = true) String refreshToken,
+            HttpServletRequest request);
 
     @Operation(
             summary = "Logout user",
@@ -423,5 +427,5 @@ public interface AuthControllerDoc {
                     )
             )
     })
-    ResponseEntity<Void> logout(@Parameter(hidden = true) String token, User user, HttpServletRequest request);
+    ResponseEntity<Void> logout(@Parameter(hidden = true) String refreshToken, User user, HttpServletRequest request);
 }

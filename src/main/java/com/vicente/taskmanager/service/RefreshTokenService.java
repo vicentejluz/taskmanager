@@ -11,5 +11,5 @@ public interface RefreshTokenService {
     void revokeToken(String token, Long userId);
     void revokeAllTokens(Long userId);
     void revokeAllTokensExceptCurrentToken(Long userId, String currentRefreshToken);
-    void handleReuseAttack(Long userId);
+    void handleReuseAttack(RefreshToken oldRefreshToken, String ipAddress);
 }

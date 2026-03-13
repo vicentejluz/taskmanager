@@ -85,7 +85,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
 
     @Override
     @Transactional(readOnly = true)
-    public VerificationToken findByToken(String token) {
+    public VerificationToken findByToken(UUID token) {
         return verificationTokenRepository.findByToken(token).orElseThrow(() -> {
                     logger.debug("Email confirmation failed: token not found");
                     return new VerificationTokenException("Invalid token");
@@ -101,8 +101,7 @@ public class VerificationTokenServiceImpl implements VerificationTokenService {
     }
 
     private VerificationToken generateVerificationToken(User user, TokenType tokenType) {
-        VerificationToken verificationToken = new VerificationToken(
-                UUID.randomUUID().toString(), tokenType,
+        VerificationToken verificationToken = new VerificationToken(tokenType,
                 OffsetDateTime.now().plusHours(tokenType.getExpirationHours()), user);
 
         return verificationTokenRepository.save(verificationToken);

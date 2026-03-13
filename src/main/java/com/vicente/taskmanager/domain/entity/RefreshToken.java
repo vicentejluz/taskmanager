@@ -20,6 +20,9 @@ public class RefreshToken extends BaseEntity {
     @Column(nullable = false)
     private boolean revoked;
 
+    @Column(name = "reuse_detected", nullable = false)
+    private boolean reuseDetected;
+
     public RefreshToken() {
     }
 
@@ -28,6 +31,7 @@ public class RefreshToken extends BaseEntity {
         this.expiresAt = expiresAt;
         this.user = user;
         this.revoked = false;
+        this.reuseDetected = false;
     }
 
     public String getToken() {
@@ -56,5 +60,9 @@ public class RefreshToken extends BaseEntity {
 
     public void setRevoked(boolean revoked) {
         this.revoked = revoked;
+    }
+
+    public boolean isReuseDetected() {
+        return reuseDetected;
     }
 }

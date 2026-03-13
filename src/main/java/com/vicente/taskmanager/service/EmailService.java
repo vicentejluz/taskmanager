@@ -5,4 +5,5 @@ public interface EmailService {
     void sendForgotPasswordEmail(String email, String resetToken);
     void sendPasswordResetSuccessEmail(String email, String ipAddress);
     void sendVerificationEmailSuccessEmail(String email, String ipAddress);
+    void sendSecurityAlert(String email, String ipAddress);
 }

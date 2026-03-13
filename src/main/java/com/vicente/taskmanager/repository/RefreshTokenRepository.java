@@ -5,6 +5,7 @@ import io.lettuce.core.dynamic.annotation.Param;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
@@ -73,6 +74,10 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT rt FROM RefreshToken rt WHERE rt.token = :token")
     Optional<RefreshToken> findByTokenForUpdate(@Param("token") String token);
+
+    @Modifying
+    @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id")
+    void markReuseDetected(@Param("id") Long id);
 
     Optional<RefreshToken> findByToken(String token);
 

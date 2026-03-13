@@ -3,16 +3,29 @@ package com.vicente.taskmanager.domain.entity;
 import com.vicente.taskmanager.domain.entity.base.BaseEntity;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.hibernate.generator.EventType;
+
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tb_verification_tokens")
 public class VerificationToken extends BaseEntity {
-    @Column(nullable = false, unique = true)
-    private String token;
+    @Column(
+            nullable = false,
+            unique = true,
+            updatable = false,
+            insertable = false,
+            columnDefinition = "UUID DEFAULT uuidv7()"
+    )
+    @Generated(event = EventType.INSERT)
+    @ColumnDefault("uuidv7()")
+    private UUID token;
 
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
@@ -29,14 +42,13 @@ public class VerificationToken extends BaseEntity {
     public VerificationToken() {
     }
 
-    public VerificationToken(String token, TokenType type, OffsetDateTime expiresAt, User user) {
-        this.token = token;
+    public VerificationToken(TokenType type, OffsetDateTime expiresAt, User user) {
         this.type = type;
         this.expiresAt = expiresAt;
         this.user = user;
     }
 
-    public String getToken() {
+    public UUID getToken() {
         return token;
     }
 
@@ -48,10 +60,6 @@ public class VerificationToken extends BaseEntity {
         return user;
     }
 
-    public void setToken(String token) {
-        this.token = token;
-    }
-
     public void setType(TokenType type) {
         this.type = type;
     }
@@ -61,6 +69,6 @@ public class VerificationToken extends BaseEntity {
     }
 
     public boolean isExpired(){
-        return this.expiresAt.isBefore(OffsetDateTime.now());
+        return expiresAt != null && this.expiresAt.isBefore(OffsetDateTime.now());
     }
 }

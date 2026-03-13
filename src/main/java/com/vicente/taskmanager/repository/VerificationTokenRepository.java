@@ -8,10 +8,11 @@ import org.springframework.stereotype.Repository;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface VerificationTokenRepository extends JpaRepository<VerificationToken, Long> {
-    Optional<VerificationToken> findByToken(String token);
+    Optional<VerificationToken> findByToken(UUID token);
     Optional<VerificationToken> findByUser_IdAndType(Long id, TokenType tokenType);
     List<VerificationToken> findByTypeAndExpiresAtBefore(TokenType tokenType, OffsetDateTime thresholdDate);
 }
