@@ -12,9 +12,22 @@ import org.springframework.stereotype.Repository;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
+    @Modifying
+    @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id")
+    void markReuseDetected(@Param("id") Long id);
+
+    Optional<RefreshToken> findByToken(String token);
+
+    List<RefreshToken> findByUser_IdAndRevokedAtNull(Long userId);
+    List<RefreshToken> findByUser_IdAndTokenFamilyId(Long userId, UUID tokenFamilyId);
+    List<RefreshToken> findByExpiresAtBefore(OffsetDateTime thresholdDate);
+    List<RefreshToken> findByUser_DeletedAtBefore(OffsetDateTime thresholdDate);
+
+
 
     /**
      * Busca um refresh token pelo seu valor aplicando um lock pessimista (PESSIMISTIC_WRITE).
@@ -74,14 +87,4 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT rt FROM RefreshToken rt WHERE rt.token = :token")
     Optional<RefreshToken> findByTokenForUpdate(@Param("token") String token);
-
-    @Modifying
-    @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id")
-    void markReuseDetected(@Param("id") Long id);
-
-    Optional<RefreshToken> findByToken(String token);
-
-    List<RefreshToken> findByUser_IdAndRevokedFalse(Long userId);
-    List<RefreshToken> findByExpiresAtBefore(OffsetDateTime thresholdDate);
-    List<RefreshToken> findByUser_DeletedAtBefore(OffsetDateTime thresholdDate);
 }

@@ -233,9 +233,9 @@ public class AuthServiceImpl implements AuthService {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
                 (token != null) ? token.substring(0, 8) : null);
 
-        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(token);
+        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(RefreshTokenServiceImpl.hashToken(token));
 
-        if (oldRefreshToken.isRevoked()) {
+        if (oldRefreshToken.getRevokedAt() != null) {
             logger.debug("Refresh token has been revoked");
             refreshTokenService.handleReuseAttack(oldRefreshToken, ipAddress);
             throw new ReuseAttackException("Refresh token reuse detected!");

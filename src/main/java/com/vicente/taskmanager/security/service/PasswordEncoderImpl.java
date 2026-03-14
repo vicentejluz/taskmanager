@@ -1,11 +1,11 @@
 package com.vicente.taskmanager.security.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-public class PasswordService implements PasswordEncoder {
+public class PasswordEncoderImpl implements PasswordEncoder {
     private final PasswordEncoder passwordEncoder;
     private final String PEPPER;
 
-    public PasswordService(PasswordEncoder passwordEncoder, String pepper) {
+    public PasswordEncoderImpl(PasswordEncoder passwordEncoder, String pepper) {
         this.passwordEncoder = passwordEncoder;
         this.PEPPER = pepper;
     }

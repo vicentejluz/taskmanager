@@ -5,7 +5,7 @@ import com.vicente.taskmanager.security.checker.AccountStatusUserDetailsChecker;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
-import com.vicente.taskmanager.security.service.PasswordService;
+import com.vicente.taskmanager.security.service.PasswordEncoderImpl;
 import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -99,7 +99,7 @@ public class WebSecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder(@Value("${auth.password.pepper}") String pepper) {
-        return new PasswordService(new Argon2PasswordEncoder(16, 32, 2,
+        return new PasswordEncoderImpl(new Argon2PasswordEncoder(16, 32, 2,
                 65536, 3), pepper);
     }
 
