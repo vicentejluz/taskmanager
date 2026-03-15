@@ -18,10 +18,11 @@ public final class CookieHelper {
         return headers;
     }
 
-    public static ResponseCookie createCookie(String name, String value, Duration duration, boolean httpOnly) {
+    public static ResponseCookie createCookie(String name, String value, Duration duration, boolean httpOnly, boolean secure) {
         return ResponseCookie.from(name, value)
                 .path(COOKIE_PATH)
                 .httpOnly(httpOnly)
+                .secure(secure)
                 .sameSite("Strict")
                 .maxAge(duration)
                 .build();

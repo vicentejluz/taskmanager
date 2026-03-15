@@ -30,14 +30,17 @@ import java.util.UUID;
 public class AuthController implements AuthControllerDoc {
     private final AuthService authService;
     private final long refreshTokenExpirationDays;
+    private final boolean cookieSecure;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
     private static final String FINGERPRINT_COOKIE = "fingerprint";
 
     public AuthController(AuthService authService,
-                          @Value("${security.refresh.token.expiration.days}") long refreshTokenExpirationDays) {
+                          @Value("${security.refresh.token.expiration.days}") long refreshTokenExpirationDays,
+                          @Value("${cookie.secure:true}") boolean cookieSecure) {
         this.authService = authService;
         this.refreshTokenExpirationDays = refreshTokenExpirationDays;
+        this.cookieSecure = cookieSecure;
     }
 
     @Override
@@ -162,9 +165,9 @@ public class AuthController implements AuthControllerDoc {
             Duration duration
     ) {
         ResponseCookie refreshTokenCookie = CookieHelper.createCookie(REFRESH_TOKEN_COOKIE,
-                newRefreshToken, duration, true);
+                newRefreshToken, duration, true, cookieSecure);
         ResponseCookie fingerprintCookie = CookieHelper.createCookie(FINGERPRINT_COOKIE,
-                newFingerprint, duration, true);
+                newFingerprint, duration, true, cookieSecure);
         return CookieHelper.createHeaders(refreshTokenCookie, fingerprintCookie);
     }
 }

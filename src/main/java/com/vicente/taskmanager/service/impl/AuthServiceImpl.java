@@ -232,7 +232,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(noRollbackFor = ReuseAttackException.class)
     public TokenResponseDTO refreshToken(String token, String fingerprint, String ipAddress) {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
-                (token != null) ? token.substring(0, 8) : null);
+                (token != null) ? token.substring(0, Math.min(8, token.length())) : null);
 
         if (token == null || fingerprint == null) {
             logger.debug("Refresh request missing required cookies | refreshTokenPresent={} fingerprintPresent={}",
@@ -250,6 +250,12 @@ public class AuthServiceImpl implements AuthService {
         }
 
         refreshTokenService.validateExpiration(oldRefreshToken);
+
+        if (oldRefreshToken.getFingerprint() == null) {
+            logger.debug("Legacy token with no fingerprint, forcing re-login | tokenId={} | userId={}",
+                    oldRefreshToken.getId(), oldRefreshToken.getUser().getId());
+            throw new RefreshTokenException("Session expired, please log in again");
+        }
 
         if(!refreshTokenService.matchesFingerprint(oldRefreshToken, fingerprint)) {
             logger.debug("Fingerprint mismatch detected | tokenId={} | userId={}", oldRefreshToken.getId(),

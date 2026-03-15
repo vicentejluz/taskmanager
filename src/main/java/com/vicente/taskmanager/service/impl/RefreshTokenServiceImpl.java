@@ -51,13 +51,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     public String create(User user, RefreshToken oldRefreshToken, String oldFingerprint) {
         logger.info("Creating refresh token (rotation flow) | userId={}", user.getId());
 
-        if (oldRefreshToken != null) {
-            logger.debug("Revoking previous refresh token | tokenId={} | userId={}",
-                    oldRefreshToken.getId(), user.getId());
-            oldRefreshToken.setRevokedAt(OffsetDateTime.now());
-        }
+        logger.debug("Revoking previous refresh token | tokenId={} | userId={}",
+                oldRefreshToken.getId(), user.getId());
+        oldRefreshToken.setRevokedAt(OffsetDateTime.now());
 
-        return createNewToken(user, Objects.requireNonNull(oldRefreshToken).getTokenFamilyId(),
+        return createNewToken(user, oldRefreshToken.getTokenFamilyId(),
                 oldFingerprint);
     }
 
@@ -183,7 +181,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     private String tokenPrefix(String token) {
-        return (token != null) ? token.substring(0, 8) : null;
+        return (token != null) ? token.substring(0, Math.min(8, token.length())) : null;
     }
 
     private RefreshTokenResult createNewToken(User user) {
