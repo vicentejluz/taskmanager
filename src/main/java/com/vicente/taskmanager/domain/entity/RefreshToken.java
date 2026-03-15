@@ -27,12 +27,16 @@ public class RefreshToken extends BaseEntity {
     @Column(name = "reuse_detected", nullable = false)
     private boolean reuseDetected;
 
+    @Column(nullable = false)
+    private String fingerprint;
+
     public RefreshToken() {
     }
 
-    public RefreshToken(String token, UUID tokenFamilyId, OffsetDateTime expiresAt, User user) {
+    public RefreshToken(String token, UUID tokenFamilyId, String fingerprint, OffsetDateTime expiresAt, User user) {
         this.token = token;
         this.tokenFamilyId = tokenFamilyId;
+        this.fingerprint = fingerprint;
         this.expiresAt = expiresAt;
         this.user = user;
         this.reuseDetected = false;
@@ -58,6 +62,10 @@ public class RefreshToken extends BaseEntity {
         return tokenFamilyId;
     }
 
+    public String getFingerprint() {
+        return fingerprint;
+    }
+
     public void setToken(String token) {
         this.token = token;
     }
@@ -65,7 +73,6 @@ public class RefreshToken extends BaseEntity {
     public void setUser(User user) {
         this.user = user;
     }
-
 
     public void setRevokedAt(OffsetDateTime revokedAt) {
         this.revokedAt = revokedAt;

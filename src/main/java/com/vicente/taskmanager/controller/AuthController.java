@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.controller;
 
 import com.vicente.taskmanager.controller.docs.AuthControllerDoc;
+import com.vicente.taskmanager.controller.util.CookieHelper;
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.request.*;
 import com.vicente.taskmanager.dto.response.AccessTokenResponseDTO;
@@ -10,7 +11,6 @@ import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.security.TokenExtractor;
 import com.vicente.taskmanager.service.AuthService;
-import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -30,6 +30,7 @@ public class AuthController implements AuthControllerDoc {
     private final AuthService authService;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    private static final String FINGERPRINT_COOKIE = "fingerprint";
 
     public AuthController(AuthService authService) {
         this.authService = authService;
@@ -50,14 +51,16 @@ public class AuthController implements AuthControllerDoc {
     @PostMapping("/login")
     public ResponseEntity<AccessTokenResponseDTO> login(
             @Valid @RequestBody LoginRequestDTO loginRequestDTO,
-            @CookieValue(value = "refreshToken", required = false) String refreshToken
+            @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshToken
     ) {
         logger.debug("POST /api/v1/auth/login login called | email={}", loginRequestDTO.email());
         TokenResponseDTO tokenResponseDTO = authService.login(loginRequestDTO, refreshToken);
-        ResponseCookie cookie = getResponseCookie(tokenResponseDTO.refreshToken(), Duration.ofDays(12));
+        String newRefreshToken = tokenResponseDTO.refreshToken();
+        String newFingerprint = tokenResponseDTO.fingerprint();
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(accessToken);
+        HttpHeaders headers = getHeaders(newRefreshToken, newFingerprint,
+                Duration.ofDays(12));
+        return ResponseEntity.ok().headers(headers).body(accessToken);
     }
 
     @Override
@@ -113,48 +116,51 @@ public class AuthController implements AuthControllerDoc {
     @Override
     @PostMapping("/refresh")
     public ResponseEntity<AccessTokenResponseDTO> refreshToken(
-            @Parameter(hidden = true)
-            @CookieValue(value = "refreshToken", required = false)
+            @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false)
             String refreshToken,
+            @CookieValue(value = FINGERPRINT_COOKIE, required = false)
+            String fingerprint,
             HttpServletRequest request
     ) {
         logger.debug("POST /api/v1/auth/refresh refresh token called");
         String ipAddress = getClientIp(request);
-        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken, ipAddress);
-        ResponseCookie cookie = getResponseCookie(tokenResponseDTO.refreshToken(), Duration.ofDays(12));
+        TokenResponseDTO tokenResponseDTO = authService.refreshToken(refreshToken, fingerprint, ipAddress);
+        String newRefreshToken = tokenResponseDTO.refreshToken();
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
-        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(accessToken);
+        HttpHeaders headers = getHeaders(newRefreshToken, fingerprint,
+                Duration.ofDays(12));
+        return ResponseEntity.ok().headers(headers).body(accessToken);
     }
 
     @Override
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @CookieValue(value = "refreshToken", required = false) String refreshToken,
+            @CookieValue(value = REFRESH_TOKEN_COOKIE, required = false) String refreshToken,
             @AuthenticationPrincipal User user,
             HttpServletRequest request
     ) {
         logger.debug("POST /api/v1/auth/logout logout called | userId={}", user.getId());
         String accessToken = TokenExtractor.extractAccessToken(request);
         authService.logout(refreshToken, accessToken, user.getId());
-        ResponseCookie cookie = getResponseCookie("", Duration.ZERO);
-        return ResponseEntity.noContent()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .build();
-    }
-
-    private ResponseCookie getResponseCookie(String value, Duration duration) {
-        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
-                .path("/api/v1")
-                .httpOnly(true)
-                .sameSite("Strict")
-                .maxAge(duration)
-                .build();
+        HttpHeaders headers = getHeaders("", "", Duration.ZERO);
+        return ResponseEntity.noContent().headers(headers).build();
     }
 
     private String getClientIp(HttpServletRequest request) {
         return request.getHeader("X-Forwarded-For") != null
                 ? request.getHeader("X-Forwarded-For").split(",")[0].trim()
                 : request.getRemoteAddr();
+    }
+
+    private HttpHeaders getHeaders(
+            String newRefreshToken,
+            String newFingerprint,
+            Duration duration
+    ) {
+        ResponseCookie refreshTokenCookie = CookieHelper.createCookie(REFRESH_TOKEN_COOKIE,
+                newRefreshToken, duration, true);
+        ResponseCookie fingerprintCookie = CookieHelper.createCookie(FINGERPRINT_COOKIE,
+                newFingerprint, duration, true);
+        return CookieHelper.createHeaders(refreshTokenCookie, fingerprintCookie);
     }
 }

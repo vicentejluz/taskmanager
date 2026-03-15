@@ -380,6 +380,7 @@ public interface AuthControllerDoc {
     })
     ResponseEntity<AccessTokenResponseDTO> refreshToken(
             @Parameter(hidden = true) String refreshToken,
+            @Parameter(hidden = true) String fingerprint,
             HttpServletRequest request);
 
     @Operation(

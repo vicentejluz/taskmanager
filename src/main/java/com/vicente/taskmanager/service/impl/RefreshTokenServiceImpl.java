@@ -2,8 +2,10 @@ package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.domain.entity.RefreshToken;
 import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.dto.internal.RefreshTokenResult;
 import com.vicente.taskmanager.exception.RefreshTokenException;
 import com.vicente.taskmanager.repository.RefreshTokenRepository;
+import com.vicente.taskmanager.security.util.CryptoHelper;
 import com.vicente.taskmanager.service.EmailService;
 import com.vicente.taskmanager.service.RefreshTokenService;
 import org.slf4j.Logger;
@@ -11,11 +13,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -25,10 +22,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final long refreshExpiration;
     private final long refreshTokenGraceWindow;
     private final EmailService emailService;
-    // SecureRandom é um gerador de números aleatórios
-    // criptograficamente seguro (CSPRNG).
-    // Diferente de Random, ele NÃO é previsível.
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final Logger logger = LoggerFactory.getLogger(RefreshTokenServiceImpl.class);
 
     public RefreshTokenServiceImpl(
@@ -45,19 +38,17 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     @Transactional
-    public String create(User user, String oldRefreshToken) {
+    public RefreshTokenResult create(User user, String oldRefreshToken) {
         logger.info("Creating refresh token (login flow) | userId={}", user.getId());
 
         revokeOldRefreshTokenIfOwnedByUser(user.getId(), oldRefreshToken);
 
-        UUID tokenFamilyId = UUID.randomUUID();
-
-        return createNewToken(user, tokenFamilyId);
+        return createNewToken(user);
     }
 
     @Override
     @Transactional
-    public String create(User user, RefreshToken oldRefreshToken) {
+    public String create(User user, RefreshToken oldRefreshToken, String oldFingerprint) {
         logger.info("Creating refresh token (rotation flow) | userId={}", user.getId());
 
         if (oldRefreshToken != null) {
@@ -66,11 +57,12 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
             oldRefreshToken.setRevokedAt(OffsetDateTime.now());
         }
 
-        return createNewToken(user, Objects.requireNonNull(oldRefreshToken).getTokenFamilyId());
+        return createNewToken(user, Objects.requireNonNull(oldRefreshToken).getTokenFamilyId(),
+                oldFingerprint);
     }
 
     @Override
-    public void validate(RefreshToken refreshToken) {
+    public void validateExpiration(RefreshToken refreshToken) {
         logger.info("Validating refresh token | tokenPrefix={}", tokenPrefix(refreshToken.getToken()));
 
         if (refreshToken.getExpiresAt().isBefore(OffsetDateTime.now())) {
@@ -126,8 +118,11 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         if (refreshTokens.isEmpty())
             return;
 
+        String hashed = CryptoHelper.hashValue(currentRefreshToken);
+
         refreshTokens.forEach(refreshToken -> {
-            if (!refreshToken.getToken().equals(currentRefreshToken)) {
+            if (!CryptoHelper.safeEquals(refreshToken.getToken(),
+                    hashed)) {
                 refreshToken.setRevokedAt(OffsetDateTime.now());
             }
         });
@@ -139,13 +134,16 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Override
     @Transactional
-    public void handleReuseAttack(RefreshToken oldRefreshToken, String ipAddress) {
+    public void handleTokenCompromise(RefreshToken oldRefreshToken, String ipAddress) {
         if (oldRefreshToken.isReuseDetected()) {
             logger.debug("Reuse already handled | tokenId={}", oldRefreshToken.getId());
             return;
         }
 
-        if(oldRefreshToken.getRevokedAt().isBefore(OffsetDateTime.now().minusSeconds(refreshTokenGraceWindow))) {
+        OffsetDateTime threshold =
+                OffsetDateTime.now().minusSeconds(refreshTokenGraceWindow);
+
+        if(oldRefreshToken.getRevokedAt() == null || oldRefreshToken.getRevokedAt().isBefore(threshold)) {
             logger.warn("Refresh token reuse detected | id={}", oldRefreshToken.getId());
 
             User user = oldRefreshToken.getUser();
@@ -163,27 +161,50 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public RefreshToken findByTokenForUpdate(String token) {
-        return refreshTokenRepository.findByTokenForUpdate(token).orElseThrow(() -> {
-            logger.debug("Invalid refresh token");
-            return new RefreshTokenException("Refresh token invalid!");
-        });
+        return refreshTokenRepository.findByTokenForUpdate(CryptoHelper.hashValue(token)).orElseThrow(
+                () -> {
+                    logger.debug("Invalid refresh token");
+                    return new RefreshTokenException("Refresh token invalid!");
+                });
+    }
+
+    @Override
+    public boolean matchesFingerprint(RefreshToken oldRefreshToken, String fingerprint){
+        return CryptoHelper.safeEquals(
+                oldRefreshToken.getFingerprint(), CryptoHelper.hashValue(fingerprint));
     }
 
     private RefreshToken findByToken(String token) {
-        return refreshTokenRepository.findByToken(hashToken(token)).orElseThrow(() -> {
-            logger.debug("Invalid refresh token | tokenPrefix={}", tokenPrefix(token));
-            return new RefreshTokenException("Refresh token invalid!");
-        });
+        return refreshTokenRepository.findByToken(CryptoHelper.hashValue(token)).orElseThrow(
+                () -> {
+                    logger.debug("Invalid refresh token | tokenPrefix={}", tokenPrefix(token));
+                    return new RefreshTokenException("Refresh token invalid!");
+                });
     }
 
     private String tokenPrefix(String token) {
         return (token != null) ? token.substring(0, 8) : null;
     }
 
-    private String createNewToken(User user, UUID tokenFamilyId) {
-        String token = generateToken();
+    private RefreshTokenResult createNewToken(User user) {
+        UUID tokenFamilyId = UUID.randomUUID();
+        String fingerprint = CryptoHelper.generateSecureRandomValue();
+
+        String token = createNewRefreshToken(user, tokenFamilyId, fingerprint);
+
+        return new RefreshTokenResult(token, fingerprint);
+    }
+
+    private String createNewToken(User user, UUID tokenFamilyId, String fingerprint) {
+        return createNewRefreshToken(user, tokenFamilyId, fingerprint);
+    }
+
+    private String createNewRefreshToken(User user, UUID tokenFamilyId, String fingerprint) {
+        String token = CryptoHelper.generateSecureRandomValue();
+
         OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(refreshExpiration);
-        RefreshToken refreshToken = new RefreshToken(hashToken(token), tokenFamilyId, expiresAt, user);
+        RefreshToken refreshToken = new RefreshToken(CryptoHelper.hashValue(token), tokenFamilyId,
+                CryptoHelper.hashValue(fingerprint), expiresAt, user);
 
         refreshTokenRepository.saveAndFlush(refreshToken);
         logger.info("Refresh token created successfully | tokenId={} | userId={} | expiresAt={}",
@@ -195,7 +216,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         if (oldRefreshToken == null)
             return;
 
-        Optional<RefreshToken> optionalOldRefreshToken = refreshTokenRepository.findByToken(hashToken(oldRefreshToken));
+        Optional<RefreshToken> optionalOldRefreshToken = refreshTokenRepository.findByToken(
+                CryptoHelper.hashValue(oldRefreshToken));
 
         optionalOldRefreshToken.ifPresent(refreshToken -> {
             if (refreshToken.getUser().getId().equals(userId)) {
@@ -221,77 +243,5 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         refreshTokenRepository.saveAll(refreshTokens);
         logger.info("All family tokens revoked successfully | userId={} tokenFamilyId={} count={}",
                 userId, refreshTokens.size(), tokenFamilyId);
-    }
-
-
-    /**
-     * Gera um Refresh Token seguro usando criptografia forte.
-
-     * Estratégia:
-     * - Usa SecureRandom (CSPRNG do sistema operacional)
-     * - Gera 32 bytes (256 bits de entropia)
-     * - Converte para Base64 URL Safe
-
-     * Esse token será enviado ao cliente (cookie HttpOnly).
-     */
-    private String generateToken(){
-        // Cria um array de 32 bytes.
-        // 32 bytes = 256 bits.
-        // Isso fornece altíssimo nível de segurança contra ataques de força bruta.
-        byte[] bytes = new byte[32];
-
-        // Preenche o array com bytes aleatórios seguros.
-        // Esses valores são gerados usando fontes seguras do sistema operacional.
-        SECURE_RANDOM.nextBytes(bytes);
-
-        return getString(bytes);
-    }
-
-    /**
-     * Gera o hash SHA-256 do Refresh Token.
-
-     * IMPORTANTE:
-     * - O banco de dados NÃO deve armazenar o token puro.
-     * - Apenas o hash deve ser armazenado.
-     * - Isso protege contra vazamento do banco.
-
-     * Processo:
-     * - Recebe o token
-     * - Converte para bytes UTF-8
-     * - Aplica SHA-256
-     * - Converte o resultado para Base64
-     */
-    public static String hashToken(String token){
-        // MessageDigest é a classe padrão do Java para calcular hashes.
-        MessageDigest messageDigest;
-        try {
-            // SHA-256 é um algoritmo criptográfico seguro e irreversível.
-            messageDigest = MessageDigest.getInstance("SHA-256");
-
-        } catch (NoSuchAlgorithmException e) {
-            logger.error("Hash Algorithm Not Supported!", e);
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
-
-        // Converte o token (String) para bytes usando UTF-8.
-        // Hash functions trabalham com bytes, não com texto.
-        // Calcula o hash SHA-256.
-        // O resultado será sempre:
-        // - 32 bytes (256 bits)
-        // Independentemente do tamanho do token original.
-        byte[] hash = messageDigest.digest(token.getBytes(StandardCharsets.UTF_8));
-
-        return getString(hash);
-    }
-
-    private static String getString(byte[] bytes) {
-        // Converte os bytes em String usando Base64 URL Safe.
-        // Isso é necessário porque:
-        // - Bytes não podem ser enviados diretamente em HTTP
-        // - Base64 transforma bytes em texto
-        // - UrlEncoder evita caracteres problemáticos (+, /)
-        //
-        // withoutPadding() remove o caractere '=' no final.
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 }

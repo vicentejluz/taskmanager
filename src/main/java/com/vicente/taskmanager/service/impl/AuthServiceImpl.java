@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.domain.entity.RefreshToken;
+import com.vicente.taskmanager.dto.internal.RefreshTokenResult;
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.PasswordRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
@@ -111,7 +112,7 @@ public class AuthServiceImpl implements AuthService {
 
             user = (User) authentication.getPrincipal();
             String accessToken = tokenService.generateToken(Objects.requireNonNull(user));
-            String refreshToken = refreshTokenService.create(Objects.requireNonNull(user), oldRefreshToken);
+            RefreshTokenResult refreshTokenResult = refreshTokenService.create(Objects.requireNonNull(user), oldRefreshToken);
 
             if (passwordEncoder.upgradeEncoding(user.getPassword())) {
                 user.setPassword(passwordEncoder.encode(loginRequestDTO.password()));
@@ -121,7 +122,7 @@ public class AuthServiceImpl implements AuthService {
 
             logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
 
-            return new TokenResponseDTO(accessToken, refreshToken);
+            return new TokenResponseDTO(accessToken, refreshTokenResult.refreshToken(), refreshTokenResult.fingerprint());
         } catch (BadCredentialsException e) {
             handleFailedLogin(Objects.requireNonNull(user));
 
@@ -229,28 +230,42 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional(noRollbackFor = ReuseAttackException.class)
-    public TokenResponseDTO refreshToken(String token, String ipAddress) {
+    public TokenResponseDTO refreshToken(String token, String fingerprint, String ipAddress) {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
                 (token != null) ? token.substring(0, 8) : null);
 
-        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(RefreshTokenServiceImpl.hashToken(token));
+        if (token == null || fingerprint == null) {
+            logger.debug("Refresh request missing required cookies | refreshTokenPresent={} fingerprintPresent={}",
+                    token != null, fingerprint != null);
+
+            throw new RefreshTokenException("Refresh token or fingerprint is missing");
+        }
+
+        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(token);
 
         if (oldRefreshToken.getRevokedAt() != null) {
             logger.debug("Refresh token has been revoked");
-            refreshTokenService.handleReuseAttack(oldRefreshToken, ipAddress);
+            refreshTokenService.handleTokenCompromise(oldRefreshToken, ipAddress);
             throw new ReuseAttackException("Refresh token reuse detected!");
         }
 
-        refreshTokenService.validate(oldRefreshToken);
+        refreshTokenService.validateExpiration(oldRefreshToken);
+
+        if(!refreshTokenService.matchesFingerprint(oldRefreshToken, fingerprint)) {
+            logger.debug("Fingerprint mismatch detected | tokenId={} | userId={}", oldRefreshToken.getId(),
+                    oldRefreshToken.getUser().getId());
+            refreshTokenService.handleTokenCompromise(oldRefreshToken, ipAddress);
+            throw new ReuseAttackException("Fingerprint mismatch detected");
+        }
 
         User user = oldRefreshToken.getUser();
 
         String accessToken = tokenService.generateToken(user);
 
-        String refreshToken = refreshTokenService.create(user, oldRefreshToken);
+        String refreshToken = refreshTokenService.create(user, oldRefreshToken, fingerprint);
 
         logger.info("User refreshed token successfully | userId={}", user.getId());
-        return new TokenResponseDTO(accessToken, refreshToken);
+        return new TokenResponseDTO(accessToken, refreshToken, fingerprint);
     }
 
     private void validateUserForTokenRequest(TokenType tokenType, User user) {

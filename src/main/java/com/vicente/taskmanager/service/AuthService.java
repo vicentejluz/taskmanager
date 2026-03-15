@@ -17,5 +17,5 @@ public interface AuthService {
     void validateToken(UUID token);
     void passwordReset(UUID token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
     void logout(String refreshToken, String accessToken, Long userId);
-    TokenResponseDTO refreshToken(String token, String ipAddress);
+    TokenResponseDTO refreshToken(String token, String fingerprint, String ipAddress);
 }

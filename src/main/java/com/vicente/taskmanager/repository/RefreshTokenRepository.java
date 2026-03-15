@@ -17,7 +17,7 @@ import java.util.UUID;
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     @Modifying
-    @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id")
+    @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id AND rt.reuseDetected = false")
     void markReuseDetected(@Param("id") Long id);
 
     Optional<RefreshToken> findByToken(String token);
