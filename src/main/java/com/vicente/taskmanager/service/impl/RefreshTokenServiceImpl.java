@@ -242,6 +242,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         refreshTokenRepository.saveAll(refreshTokens);
         logger.info("All family tokens revoked successfully | userId={} tokenFamilyId={} count={}",
-                userId, refreshTokens.size(), tokenFamilyId);
+                userId, tokenFamilyId, refreshTokens.size());
     }
 }

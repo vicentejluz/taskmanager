@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -28,12 +29,15 @@ import java.util.UUID;
 @RequestMapping(value = "/api/v1/auth")
 public class AuthController implements AuthControllerDoc {
     private final AuthService authService;
+    private final long refreshTokenExpirationDays;
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
     private static final String FINGERPRINT_COOKIE = "fingerprint";
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          @Value("${security.refresh.token.expiration.days}") long refreshTokenExpirationDays) {
         this.authService = authService;
+        this.refreshTokenExpirationDays = refreshTokenExpirationDays;
     }
 
     @Override
@@ -59,7 +63,7 @@ public class AuthController implements AuthControllerDoc {
         String newFingerprint = tokenResponseDTO.fingerprint();
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
         HttpHeaders headers = getHeaders(newRefreshToken, newFingerprint,
-                Duration.ofDays(12));
+                Duration.ofDays(refreshTokenExpirationDays));
         return ResponseEntity.ok().headers(headers).body(accessToken);
     }
 
@@ -128,7 +132,7 @@ public class AuthController implements AuthControllerDoc {
         String newRefreshToken = tokenResponseDTO.refreshToken();
         AccessTokenResponseDTO accessToken = new AccessTokenResponseDTO(tokenResponseDTO.accessToken());
         HttpHeaders headers = getHeaders(newRefreshToken, fingerprint,
-                Duration.ofDays(12));
+                Duration.ofDays(refreshTokenExpirationDays));
         return ResponseEntity.ok().headers(headers).body(accessToken);
     }
 

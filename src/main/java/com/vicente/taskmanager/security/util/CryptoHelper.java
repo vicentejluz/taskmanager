@@ -236,8 +236,8 @@ public final class CryptoHelper {
         if (value1 == null || value2 == null) return false;
 
         try {
-            byte[] digestA = Base64.getDecoder().decode(value1);
-            byte[] digestB = Base64.getDecoder().decode(value2);
+            var digestA = Base64.getUrlDecoder().decode(value1);
+            byte[] digestB = Base64.getUrlDecoder().decode(value2);
 
             return MessageDigest.isEqual(digestA, digestB);
         } catch (IllegalArgumentException e) {

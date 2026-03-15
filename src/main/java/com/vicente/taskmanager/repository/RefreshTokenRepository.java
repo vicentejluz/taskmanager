@@ -1,12 +1,12 @@
 package com.vicente.taskmanager.repository;
 
 import com.vicente.taskmanager.domain.entity.RefreshToken;
-import io.lettuce.core.dynamic.annotation.Param;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.OffsetDateTime;
@@ -18,7 +18,7 @@ import java.util.UUID;
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.reuseDetected = true WHERE rt.id = :id AND rt.reuseDetected = false")
-    void markReuseDetected(@Param("id") Long id);
+    void markReuseDetected(@Param("id") Long refreshTokenId);
 
     Optional<RefreshToken> findByToken(String token);
 
