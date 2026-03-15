@@ -7,13 +7,15 @@ import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.domain.enums.TokenType;
 
+import java.util.UUID;
+
 public interface AuthService {
     RegisterUserResponseDTO register(RegisterUserRequestDTO registerUserRequest);
     TokenResponseDTO login(LoginRequestDTO loginRequestDTO, String oldRefreshToken);
     void sendTokenEmail(String email, TokenType tokeType);
-    void verifyEmail(String token, String ipAddress);
-    void validateToken(String token);
-    void passwordReset(String token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
+    void verifyEmail(UUID token, String ipAddress);
+    void validateToken(UUID token);
+    void passwordReset(UUID token, PasswordRequestDTO passwordRequestDTO, String ipAddress);
     void logout(String refreshToken, String accessToken, Long userId);
-    TokenResponseDTO refreshToken(String token);
+    TokenResponseDTO refreshToken(String token, String fingerprint, String ipAddress);
 }

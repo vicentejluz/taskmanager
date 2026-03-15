@@ -5,7 +5,9 @@ import com.vicente.taskmanager.security.checker.AccountStatusUserDetailsChecker;
 import com.vicente.taskmanager.security.entrypoint.AuthEntryPointJwt;
 import com.vicente.taskmanager.security.entrypoint.CustomAccessDeniedHandler;
 import com.vicente.taskmanager.security.filter.SecurityFilter;
+import com.vicente.taskmanager.security.service.PasswordEncoderImpl;
 import jakarta.servlet.DispatcherType;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -19,7 +21,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -96,8 +98,9 @@ public class WebSecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public PasswordEncoder passwordEncoder(@Value("${auth.password.pepper}") String pepper) {
+        return new PasswordEncoderImpl(new Argon2PasswordEncoder(16, 32, 2,
+                65536, 3), pepper);
     }
 
     @Bean

@@ -1,6 +1,7 @@
 package com.vicente.taskmanager.service.impl;
 
 import com.vicente.taskmanager.domain.entity.RefreshToken;
+import com.vicente.taskmanager.dto.internal.RefreshTokenResult;
 import com.vicente.taskmanager.dto.request.LoginRequestDTO;
 import com.vicente.taskmanager.dto.request.PasswordRequestDTO;
 import com.vicente.taskmanager.dto.request.RegisterUserRequestDTO;
@@ -56,20 +57,19 @@ public class AuthServiceImpl implements AuthService {
             VerificationTokenService verificationTokenService,
             RefreshTokenService refreshTokenService,
             AuthTokenStoreService authTokenStoreService,
-            PasswordEncoder passwordEncoder,
             TokenService tokenService, EmailService emailService,
+            PasswordEncoder passwordEncoder,
             EntityManager entityManager,
             AuthenticationManager authenticationManager,
             @Value("${security.base.time.minutes}") Long BASE_TIME_MINUTES,
-            @Value("${security.lock.max_attempts}") Integer MAX_ATTEMPTS
-    ) {
+            @Value("${security.lock.max_attempts}") Integer MAX_ATTEMPTS) {
         this.userRepository = userRepository;
         this.verificationTokenService = verificationTokenService;
         this.refreshTokenService = refreshTokenService;
         this.authTokenStoreService = authTokenStoreService;
-        this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
         this.entityManager = entityManager;
         this.authenticationManager = authenticationManager;
         this.BASE_TIME_MINUTES = BASE_TIME_MINUTES;
@@ -94,13 +94,13 @@ public class AuthServiceImpl implements AuthService {
         VerificationToken verificationToken = verificationTokenService.generateOrReuseActiveToken(
                 user, TokenType.EMAIL_VERIFICATION);
 
-        emailService.sendVerificationEmail(email, verificationToken.getToken());
+        emailService.sendVerificationEmail(email, verificationToken.getToken().toString());
 
         return UserMapper.toDTO(user);
     }
 
     @Override
-    @Transactional(noRollbackFor = {BadCredentialsException.class, AccountLockedException.class})
+    @Transactional(noRollbackFor = { BadCredentialsException.class, AccountLockedException.class })
     public TokenResponseDTO login(LoginRequestDTO loginRequestDTO, String oldRefreshToken) {
         logger.info("Starting user login | email={}", loginRequestDTO.email());
 
@@ -112,17 +112,21 @@ public class AuthServiceImpl implements AuthService {
 
             user = (User) authentication.getPrincipal();
             String accessToken = tokenService.generateToken(Objects.requireNonNull(user));
-            String refreshToken = refreshTokenService.create(Objects.requireNonNull(user), oldRefreshToken);
+            RefreshTokenResult refreshTokenResult = refreshTokenService.create(Objects.requireNonNull(user), oldRefreshToken);
+
+            if (passwordEncoder.upgradeEncoding(user.getPassword())) {
+                user.setPassword(passwordEncoder.encode(loginRequestDTO.password()));
+            }
 
             user.resetFailedAttempts();
 
             logger.info("User logged in successfully. | userId={} email={}", user.getId(), user.getEmail());
 
-            return new TokenResponseDTO(accessToken, refreshToken);
-        }catch (BadCredentialsException e) {
+            return new TokenResponseDTO(accessToken, refreshTokenResult.refreshToken(), refreshTokenResult.fingerprint());
+        } catch (BadCredentialsException e) {
             handleFailedLogin(Objects.requireNonNull(user));
 
-            if(!user.isAccountNonLocked()) {
+            if (!user.isAccountNonLocked()) {
                 logger.debug("User account locked | userId={}", user.getId());
                 refreshTokenService.revokeAllTokens(user.getId());
                 user.incrementTokenVersion();
@@ -155,11 +159,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void verifyEmail(String token, String ipAddress) {
-        logger.info("Starting email verification process | token={}", token.substring(0,8));
+    public void verifyEmail(UUID token, String ipAddress) {
+        logger.info("Starting email verification process | token={}", tokenPrefix(token));
 
         VerificationToken verificationToken = verificationTokenService.findByToken(token);
-        if(verificationToken.getType() != TokenType.EMAIL_VERIFICATION) {
+        if (verificationToken.getType() != TokenType.EMAIL_VERIFICATION) {
             logger.debug("Invalid token type for email verification | tokenId={}", verificationToken.getId());
             throw new VerificationTokenException("Invalid token type");
         }
@@ -168,7 +172,8 @@ public class AuthServiceImpl implements AuthService {
         User user = verificationToken.getUser();
 
         user.setAccountStatus(AccountStatus.ACTIVE);
-        if (user.getDeletedAt() != null) user.setDeletedAt(null);
+        if (user.getDeletedAt() != null)
+            user.setDeletedAt(null);
         userRepository.saveAndFlush(user);
 
         verificationTokenService.consumeToken(verificationToken);
@@ -178,8 +183,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void validateToken(String token) {
-        logger.info("Validating token | tokenPrefix={}", token.substring(0,8));
+    public void validateToken(UUID token) {
+        logger.info("Validating token | tokenPrefix={}", tokenPrefix(token));
         VerificationToken verificationToken = verificationTokenService.findByToken(token);
         verificationTokenService.validateTokenForConsumption(verificationToken);
         logger.info("Token validated successfully | tokenId={}", verificationToken.getId());
@@ -187,10 +192,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void passwordReset(String token, PasswordRequestDTO passwordRequestDTO, String ipAddress) {
+    public void passwordReset(UUID token, PasswordRequestDTO passwordRequestDTO, String ipAddress) {
         VerificationToken verificationToken = verificationTokenService.findByToken(token);
 
-        if(verificationToken.getType() != TokenType.PASSWORD_RESET){
+        if (verificationToken.getType() != TokenType.PASSWORD_RESET) {
             logger.debug("Invalid token type for password reset | tokenId={}", verificationToken.getId());
             throw new VerificationTokenException("Invalid token type");
         }
@@ -224,37 +229,59 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public TokenResponseDTO refreshToken(String token) {
+    @Transactional(noRollbackFor = ReuseAttackException.class)
+    public TokenResponseDTO refreshToken(String token, String fingerprint, String ipAddress) {
         logger.info("Starting refresh token process | refreshTokenPrefix={}",
-                (token != null) ? token.substring(0,8) : null);
-        RefreshToken refreshToken = refreshTokenService.validate(token);
+                (token != null) ? token.substring(0, 8) : null);
 
-        User user = userRepository.findById(refreshToken.getUser().getId()).orElseThrow(() -> {
-                logger.debug("Invalid refresh token | userId={}", refreshToken.getUser().getId());
-                return new UserNotFoundException("User not found");
-                });
+        if (token == null || fingerprint == null) {
+            logger.debug("Refresh request missing required cookies | refreshTokenPresent={} fingerprintPresent={}",
+                    token != null, fingerprint != null);
+
+            throw new RefreshTokenException("Refresh token or fingerprint is missing");
+        }
+
+        RefreshToken oldRefreshToken = refreshTokenService.findByTokenForUpdate(token);
+
+        if (oldRefreshToken.getRevokedAt() != null) {
+            logger.debug("Refresh token has been revoked");
+            refreshTokenService.handleTokenCompromise(oldRefreshToken, ipAddress);
+            throw new ReuseAttackException("Refresh token reuse detected!");
+        }
+
+        refreshTokenService.validateExpiration(oldRefreshToken);
+
+        if(!refreshTokenService.matchesFingerprint(oldRefreshToken, fingerprint)) {
+            logger.debug("Fingerprint mismatch detected | tokenId={} | userId={}", oldRefreshToken.getId(),
+                    oldRefreshToken.getUser().getId());
+            refreshTokenService.handleTokenCompromise(oldRefreshToken, ipAddress);
+            throw new ReuseAttackException("Fingerprint mismatch detected");
+        }
+
+        User user = oldRefreshToken.getUser();
 
         String accessToken = tokenService.generateToken(user);
 
+        String refreshToken = refreshTokenService.create(user, oldRefreshToken, fingerprint);
+
         logger.info("User refreshed token successfully | userId={}", user.getId());
-        return new TokenResponseDTO(accessToken, refreshToken.getToken());
+        return new TokenResponseDTO(accessToken, refreshToken, fingerprint);
     }
 
     private void validateUserForTokenRequest(TokenType tokenType, User user) {
-        if(tokenType == TokenType.EMAIL_VERIFICATION) {
+        if (tokenType == TokenType.EMAIL_VERIFICATION) {
             logger.info("Validating email verification token for email={}", user.getEmail());
             if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
                 logger.debug("User is not pending verification | email={}", user.getEmail());
                 throw new InvalidAccountStatusException("User is not pending verification");
             }
-        }else{
+        } else {
             logger.info("Validating password reset token for email={}", user.getEmail());
-            if(user.getDeletedAt() != null){
+            if (user.getDeletedAt() != null) {
                 logger.debug("User was deleted | email={}", user.getEmail());
                 throw new AccountDeletedException("Invalid email");
             }
-            if(user.getAccountStatus() != AccountStatus.ACTIVE){
+            if (user.getAccountStatus() != AccountStatus.ACTIVE) {
                 logger.debug("User is not active | email={}", user.getEmail());
                 throw new InvalidAccountStatusException("User is not active");
             }
@@ -262,18 +289,18 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void sendEmail(String email, TokenType tokenType, User user, VerificationToken verificationToken) {
-        if(tokenType == TokenType.EMAIL_VERIFICATION) {
+        if (tokenType == TokenType.EMAIL_VERIFICATION) {
             logger.debug("Sending verification email | email={}", user.getEmail());
-            emailService.sendVerificationEmail(email, verificationToken.getToken());
+            emailService.sendVerificationEmail(email, verificationToken.getToken().toString());
         } else {
             logger.debug("Sending forgot password email | email={}", user.getEmail());
-            emailService.sendForgotPasswordEmail(email, verificationToken.getToken());
+            emailService.sendForgotPasswordEmail(email, verificationToken.getToken().toString());
         }
     }
 
     private void handleFailedLogin(User user) {
         logger.debug("Bad credentials | email={}", user.getEmail());
-        if(!user.getRoles().contains(UserRole.ADMIN)) {
+        if (!user.getRoles().contains(UserRole.ADMIN)) {
             user.registerFailedLoginAttempt(BASE_TIME_MINUTES, MAX_ATTEMPTS);
         }
     }
@@ -286,14 +313,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private @NonNull User prepareUserForRegistration(RegisterUserRequestDTO registerUserRequest,
-                                                     Optional<User> optionalUser) {
+            Optional<User> optionalUser) {
         User user;
-        if(optionalUser.isPresent()) {
+        if (optionalUser.isPresent()) {
             user = optionalUser.get();
             validateExistingUserForRegistration(user);
             UserMapper.mergeExistEntity(user, registerUserRequest);
 
-        }else{
+        } else {
             user = UserMapper.toEntity(registerUserRequest);
             user.getRoles().add(UserRole.USER);
         }
@@ -318,9 +345,11 @@ public class AuthServiceImpl implements AuthService {
             logger.debug("User has been pending verification | email={}", user.getEmail());
             throw new EmailAlreadyExistsException(
                     "Email already registered but not verified. " +
-                            "Please confirm your email or request a new verification link."
-            );
+                            "Please confirm your email or request a new verification link.");
         }
     }
-}
 
+    private static String tokenPrefix(UUID token) {
+        return token != null ? token.toString().substring(0, 8) : null;
+    }
+}
