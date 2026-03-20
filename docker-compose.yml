@@ -54,7 +54,7 @@ services:
         - es_data:/usr/share/elasticsearch/data
       networks:
         - elk-network
-      mem_limit: 1G # Limits the container to use a maximum of 1G RAM
+      mem_limit: 768M # Limits the container to use a maximum of 1G RAM
       cpus: 1 # Limits CPU usage to 100% of a single CPU core
       ulimits:
         memlock:
@@ -103,7 +103,7 @@ services:
     cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
 
   mailpit:
-    image: axllent/mailpit:v1.29.2
+    image: axllent/mailpit:v1.29.3
     container_name: mailpit
     restart: on-failure
     environment:
@@ -130,10 +130,33 @@ services:
       retries: 3 # Number of consecutive failures before marking the container as unhealthy
       start_period: 10s # Initial delay before starting health checks (allows the service to boot)
 
+  minio:
+    image: pgsty/minio:latest
+    container_name: minio
+    restart: on-failure
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000" # API S3
+      - "9001:9001" # Console Web
+    volumes:
+      - minio-data:/data
+    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/localhost/9000 || exit 1"] # Command used by Docker to check if the container is healthy
+      interval: 15s # Time between each health check execution
+      timeout: 30s # Maximum time Docker waits for the health check command to respond
+      retries: 3 # Number of consecutive failures before marking the container as unhealthy
+      start_period: 10s # Initial delay before starting health checks (allows the service to boot)
+
 volumes:
   pg-data:
   es_data:
   mailpit-data:
+  minio-data:
 
 networks:
   elk-network:
