@@ -1,14 +1,12 @@
 package com.vicente.taskmanager.controller;
 
 import com.vicente.taskmanager.controller.docs.TaskControllerDoc;
-import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.dto.response.PageResponseDTO;
 import com.vicente.taskmanager.dto.request.TaskCreateRequestDTO;
 import com.vicente.taskmanager.dto.response.TaskResponseDTO;
 
 import com.vicente.taskmanager.dto.request.TaskUpdateRequestDTO;
 import com.vicente.taskmanager.domain.entity.User;
-import com.vicente.taskmanager.service.FileStorageService;
 import com.vicente.taskmanager.service.TaskService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -18,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;

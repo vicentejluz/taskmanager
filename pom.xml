@@ -34,7 +34,8 @@
 		<module>storage-core</module>
 		<module>api</module>
 		<module>storage-s3</module>
-	</modules>
+        <module>storage-azure</module>
+    </modules>
 	<scm>
 		<connection>scm:git:https://github.com/vicentejluz/taskmanager.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com:vicentejluz/taskmanager.git</developerConnection>

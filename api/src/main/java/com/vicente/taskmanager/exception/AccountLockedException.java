@@ -6,15 +6,11 @@ import java.time.OffsetDateTime;
 
 public class AccountLockedException extends LockedException {
 
-    private OffsetDateTime lockedUntil;
+    private final OffsetDateTime lockedUntil;
 
     public AccountLockedException(String message, OffsetDateTime lockedUntil) {
         super(message);
         this.lockedUntil = lockedUntil;
-    }
-
-    public AccountLockedException(String message) {
-        super(message);
     }
 
     public OffsetDateTime getLockedUntil() {

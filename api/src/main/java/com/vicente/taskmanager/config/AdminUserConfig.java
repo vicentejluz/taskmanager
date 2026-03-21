@@ -36,7 +36,7 @@ public class AdminUserConfig implements CommandLineRunner {
 
     @Override
     @Transactional
-    public void run(String @NonNull ... args) throws Exception {
+    public void run(String @NonNull ... args) {
         Optional<User> userAdmin = userRepository.findByEmail("system@admin.com");
         userAdmin.ifPresentOrElse(
                 admin ->

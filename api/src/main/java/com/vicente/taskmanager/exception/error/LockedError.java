@@ -10,16 +10,28 @@ public record LockedError(
         )
         Instant timestamp,
 
-        @Schema(description = "HTTP status code of the error.")
+        @Schema(
+                description = "HTTP status code of the error.",
+                example = "423"
+        )
         Integer status,
 
-        @Schema(description = "HTTP status error description.")
+        @Schema(
+                description = "HTTP status error description.",
+                example = "Account Locked Error"
+        )
         String error,
 
-        @Schema(description = "Detailed message describing the error.")
+        @Schema(
+                description = "Detailed message describing the error.",
+                example = "User account is locked"
+        )
         String message,
 
-        @Schema(description = "API endpoint path where the error occurred.")
+        @Schema(
+                description = "API endpoint path where the error occurred.",
+                example = "/api/v1/auth/login"
+        )
         String path,
 
         @Schema(

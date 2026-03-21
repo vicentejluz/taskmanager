@@ -1,16 +1,16 @@
 package com.vicente.taskmanager.service.impl;
 
-import com.vicente.storage.exception.StorageException;
 import com.vicente.taskmanager.domain.entity.FileMetadata;
 import com.vicente.taskmanager.domain.entity.Task;
+import com.vicente.taskmanager.exception.FileMetadataNotFoundException;
 import com.vicente.taskmanager.repository.FileMetadataRepository;
 import com.vicente.taskmanager.service.FileMetadataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -36,6 +36,8 @@ public class FileMetaDataServiceImpl implements FileMetadataService {
         return fileMetadataRepository.saveAndFlush(fileMetadata);
     }
 
+    @Override
+    @Transactional
     public void delete(FileMetadata fileMetadata) {
         logger.info("Deleting file metadata | id={}", fileMetadata.getId());
         fileMetadataRepository.delete(fileMetadata);
@@ -48,7 +50,14 @@ public class FileMetaDataServiceImpl implements FileMetadataService {
         logger.info("Finding file metadata | id={}", id);
         return fileMetadataRepository.findById(id).orElseThrow(() ->{
             logger.debug("File metadata not found | id={}", id);
-            return new StorageException("File metadata not found", HttpStatus.NOT_FOUND.value());
+            return new FileMetadataNotFoundException("File metadata not found");
         });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FileMetadata> findAllByTaskId(Long taskId) {
+        logger.info("Finding file metadata by taskId | taskId={}", taskId);
+        return fileMetadataRepository.findAllByTaskId(taskId);
     }
 }

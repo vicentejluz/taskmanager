@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.Normalizer;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,9 +45,17 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Override
     @Transactional
     public FileStorageResponseDTO upload(MultipartFile file, Long taskId, Long userId) {
-        if(file == null || taskId == null || userId == null) {
-            logger.debug("Invalid arguments provided");
-            throw new StorageException("File, taskId, or userId cannot be null.", HttpStatus.BAD_REQUEST.value());
+        if (file == null) {
+            logger.debug("Upload failed: file is null | userId={} taskId={}", userId, taskId);
+            throw new StorageException("File must not be null", HttpStatus.BAD_REQUEST.value());
+        }
+        if (file.isEmpty()) {
+            logger.debug("Upload failed: file is empty | userId={} taskId={}", userId, taskId);
+            throw new StorageException("File must not be empty", HttpStatus.BAD_REQUEST.value());
+        }
+        if (taskId == null || userId == null) {
+            logger.debug("Upload failed: invalid identifiers | userId={} taskId={}", userId, taskId);
+            throw new StorageException("TaskId and userId must not be null", HttpStatus.BAD_REQUEST.value());
         }
 
         try(InputStream inputStream = file.getInputStream()) {
@@ -62,15 +71,18 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             String fileName = buildFileName(file.getOriginalFilename(),  mimeType, uuid);
 
+            String sanitizedFileName = sanitizeFileName(fileName);
+
             String extension = getExtension(fileName);
 
             if(extension == null) {
                 extension = ".bin";
-                fileName += extension;
-                logger.debug("File has no extension, fallback applied: {}", fileName);
+                sanitizedFileName += extension;
+                logger.debug("File has no extension, fallback applied: {}", sanitizedFileName);
             }else if (!ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
                 logger.debug("Attempt to upload a file with an unauthorized extension: {}", extension.toLowerCase());
-                throw new StorageException("File extension not allowed: " + extension.toLowerCase(), HttpStatus.BAD_REQUEST.value());
+                throw new StorageException("File extension not allowed: " + extension.toLowerCase(),
+                        HttpStatus.BAD_REQUEST.value());
             }
 
             String path = buildPath(userId, taskId);
@@ -84,7 +96,7 @@ public class FileStorageServiceImpl implements FileStorageService {
             }
 
             FileMetadata fileMetadata =
-                    fileMetadataService.createMetadata(fileName, path, storedFileName,
+                    fileMetadataService.createMetadata(sanitizedFileName, path, storedFileName,
                     extension, mimeType, size, task);
 
             storageService.upload(inputStream, size, objectKey, mimeType);
@@ -111,6 +123,18 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         return new FileDownloadResult(fileMetadata.getFileName(), inputStream, fileMetadata.getSize(),
                 fileMetadata.getContentType());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FileStorageResponseDTO> findAllByTaskId(Long taskId, Long userId) {
+        logger.info("Starting find all files by task | taskId={}, userId={}", taskId, userId);
+        Task task = taskService.findByIdAndUserId(taskId, userId);
+
+        List<FileMetadata> fileMetadataList = fileMetadataService.findAllByTaskId(task.getId());
+
+        logger.info("Files retrieved successfully | taskId={}, totalFiles={}", taskId, fileMetadataList.size());
+        return FileStorageMapper.toListDTO(fileMetadataList);
     }
 
     @Override
@@ -141,13 +165,13 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     private String buildFileName(String fileName, String mimeType, String uuid) {
-        if(fileName != null)
+        if(fileName != null && !fileName.isBlank())
             return fileName;
         if(mimeType != null)
-            return "arquivo_sem_nome_" + uuid + "." +
+            return "unnamed_file_" + uuid + "." +
                     mimeType.substring(mimeType.lastIndexOf('/') + 1);
 
-        return "arquivo_sem_nome_" + uuid;
+        return "unnamed_file_" + uuid;
     }
 
     private String getExtension(String fileName) {
@@ -164,5 +188,18 @@ public class FileStorageServiceImpl implements FileStorageService {
         }
 
         return fileMetadata;
+    }
+
+    private String sanitizeFileName(String fileName) {
+        // normaliza unicode (corrige ç, á, etc)
+        fileName = Normalizer.normalize(fileName, Normalizer.Form.NFC);
+        // remove quebra de linha (CRLF injection)
+        fileName = fileName.replaceAll("[\\r\\n]", "");
+        // permite unicode + espaço + parênteses + emoji
+        fileName = fileName.replaceAll("[^\\p{L}\\p{N}\\p{M}\\p{So}._\\- ()]", "_");
+        // normaliza espaços
+        fileName = fileName.trim().replaceAll(" +", " ");
+
+        return fileName.trim();
     }
 }

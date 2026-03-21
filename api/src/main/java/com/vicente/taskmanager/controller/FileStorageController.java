@@ -1,6 +1,5 @@
 package com.vicente.taskmanager.controller;
 
-
 import com.vicente.taskmanager.controller.docs.FileStorageControllerDoc;
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.internal.FileDownloadResult;
@@ -17,8 +16,11 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -48,6 +50,17 @@ public class FileStorageController implements FileStorageControllerDoc {
         return ResponseEntity.created(uri).body(fileStorageResponseDTO);
     }
 
+    @GetMapping("/tasks/{taskId}/files")
+    public ResponseEntity<List<FileStorageResponseDTO>> findAllByTaskId(
+            @PathVariable Long taskId,
+            @AuthenticationPrincipal User user
+    ){
+        logger.debug("GET /api/v1/tasks/{taskId}/files find all called | userId={} taskId={}", user.getId(), taskId);
+        List<FileStorageResponseDTO> files = fileStorageService.findAllByTaskId(
+                taskId, user.getId());
+        return ResponseEntity.ok(files);
+    }
+
     @GetMapping("/files/{fileId}/download")
     public ResponseEntity<Resource> download(@PathVariable("fileId") UUID id, @AuthenticationPrincipal User user){
         logger.debug("GET /api/v1/files/{fileId}/download download called | userId={} fileId={}", user.getId(), id);
@@ -55,9 +68,13 @@ public class FileStorageController implements FileStorageControllerDoc {
 
         InputStreamResource resource = new InputStreamResource(fileDownload.inputStream());
 
+        // O UriUtils vai transformar espaços em %20, que é o mais seguro.
+        String encoded = UriUtils.encode(fileDownload.filename(), StandardCharsets.UTF_8);
+
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                "attachment; filename=\"" + fileDownload.filename() + "\"")
+                        "attachment; filename=\"" + fileDownload.filename() + "\"; filename*=UTF-8''" +
+                                encoded)
                 .contentType(MediaType.parseMediaType(fileDownload.contentType()))
                 .contentLength(fileDownload.size())
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
@@ -65,10 +82,10 @@ public class FileStorageController implements FileStorageControllerDoc {
                 .body(resource);
     }
 
-    @DeleteMapping("/files/{id}/delete")
-    public ResponseEntity<Void> delete(@PathVariable UUID id, @AuthenticationPrincipal User user){
-        logger.debug("DELETE /api/v1/files/{id}/delete delete called | userId={} fileId={}", user.getId(), id);
-        fileStorageService.delete(id,  user.getId());
+    @DeleteMapping("/files/{fileId}/delete")
+    public ResponseEntity<Void> delete(@PathVariable UUID fileId, @AuthenticationPrincipal User user){
+        logger.debug("DELETE /api/v1/files/{fileId}/delete delete called | userId={} fileId={}", user.getId(), fileId);
+        fileStorageService.delete(fileId,  user.getId());
         return ResponseEntity.noContent().build();
     }
 }

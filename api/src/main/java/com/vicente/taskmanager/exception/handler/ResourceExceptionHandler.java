@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.exception.handler;
 
+import com.vicente.storage.exception.StorageException;
 import com.vicente.taskmanager.exception.*;
 import com.vicente.taskmanager.exception.error.LockedError;
 import com.vicente.taskmanager.exception.error.StandardError;
@@ -37,6 +38,31 @@ public class ResourceExceptionHandler {
     public ResponseEntity<StandardError> taskNotFound(TaskNotFoundException e, HttpServletRequest request) {
         String error = "Task Not Found Error";
         HttpStatus status = HttpStatus.NOT_FOUND;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(FileMetadataNotFoundException.class)
+    public ResponseEntity<StandardError> fileMetadataNotFound(FileMetadataNotFoundException e, HttpServletRequest request) {
+        String error = "File Metadata Not Found Error";
+        HttpStatus status = HttpStatus.NOT_FOUND;
+
+        logExceptionWarn(error, status, request, e.getMessage());
+
+        StandardError standardError = new StandardError(Instant.now(),status.value(), error,
+                e.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(status).body(standardError);
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<StandardError> storage(StorageException e, HttpServletRequest request) {
+        String error = "Storage Error";
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode());
+        if (status == null) status = HttpStatus.INTERNAL_SERVER_ERROR;
 
         logExceptionWarn(error, status, request, e.getMessage());
 

@@ -201,8 +201,10 @@ public class TaskServiceImpl implements TaskService {
     }
 
     public Task findByIdAndUserId(Long id, Long userId) {
-        return taskRepository.findByIdAndUserId(id, userId).orElseThrow(() ->
-                new TaskNotFoundException("Task not found or you do not have permission to access it"));
+        return taskRepository.findByIdAndUserId(id, userId).orElseThrow(() -> {
+            logger.debug("Task not found or access denied | taskId={}, userId={}", id, userId);
+            return new TaskNotFoundException("Task not found or you do not have permission to access it");
+        });
     }
 
     private void logTaskStatusChange(Task task, Long userId, TaskStatus previousStatus) {

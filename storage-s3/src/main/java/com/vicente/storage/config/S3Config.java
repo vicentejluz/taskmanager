@@ -4,7 +4,7 @@ import java.net.URI;
 
 import com.vicente.storage.StorageService;
 import com.vicente.storage.S3StorageService;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -14,36 +14,31 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 
-
 @Configuration
+@EnableConfigurationProperties(StorageProperties.class)
 public class S3Config {
-    @Value("${s3.url}")
-    private String s3Url;
+    private final StorageProperties storageProperties;
 
-    @Value("${s3.region}")
-    private String s3Region;
-
-    @Value("${s3.access.key}")
-    private String s3AccessKey;
-
-    @Value("${s3.secret.key}")
-    private String s3SecretKey;
+    public S3Config(StorageProperties storageProperties) {
+        this.storageProperties = storageProperties;
+    }
 
     @Bean
     public S3Client s3Client() {
         // Cria um objeto de credenciais usando Access Key e Secret Key.
-        AwsCredentials credentials = AwsBasicCredentials.create(s3AccessKey, s3SecretKey);
+        AwsCredentials credentials = AwsBasicCredentials.create(
+                storageProperties.getAccessKey(), storageProperties.getSecretKey());
         // Essas credenciais são usadas pelo cliente S3 para autenticar nas requisições.
         return S3Client
                 .builder()
                 // Define uma região para o cliente S3.
                 // O SDK exige uma região mesmo quando usamos MinIO.
                 // MinIO, na prática, ignora a região, mas o SDK precisa de um valor.
-                .region(Region.of(s3Region))
+                .region(Region.of(storageProperties.getRegion()))
                 // Sobrescreve o endpoint padrão da AWS.
                 // Em vez de enviar requisições para a AWS, o cliente vai se conectar
                 // ao seu servidor MinIO rodando localmente.
-                .endpointOverride(URI.create(s3Url))
+                .endpointOverride(URI.create(storageProperties.getUrl()))
                 // Define o provedor de credenciais que o cliente usará.
                 // StaticCredentialsProvider significa que as credenciais são fixas
                 // e não serão renovadas automaticamente.
@@ -67,7 +62,7 @@ public class S3Config {
     }
 
     @Bean
-    public StorageService s3Storage(S3Client s3Client, @Value("${s3.bucket.name}") String bucketName) {
-        return new S3StorageService(s3Client, bucketName);
+    public StorageService s3Storage(S3Client s3Client) {
+        return new S3StorageService(s3Client, storageProperties.getBucketName());
     }
 }

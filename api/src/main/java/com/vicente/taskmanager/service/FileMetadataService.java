@@ -3,6 +3,7 @@ package com.vicente.taskmanager.service;
 import com.vicente.taskmanager.domain.entity.FileMetadata;
 import com.vicente.taskmanager.domain.entity.Task;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface FileMetadataService {
@@ -10,6 +11,7 @@ public interface FileMetadataService {
                                 String contentType, Long size, Task task);
     void delete(FileMetadata fileMetadata);
     FileMetadata findById(UUID id);
+    List<FileMetadata> findAllByTaskId(Long taskId);
 
 
 }
