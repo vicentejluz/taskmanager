@@ -5,6 +5,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class TaskManagerApplication{
+//	@Value("${app.storage.azure-blob.connection-string}")
+//	private String cString;
+
 //	private final StorageService storageService;
 //
 //    public TaskManagerApplication(StorageService storageService) {
@@ -17,6 +20,34 @@ public class TaskManagerApplication{
 
 //	@Override
 //	public void run(String... args) throws Exception {
+//		String connectionString = cString;
+//		String containerName = "taskmanager-files";
+//
+//		BlobContainerClient containerClient = new BlobContainerClientBuilder()
+//				.connectionString(connectionString)
+//				.containerName(containerName)
+//				.buildClient();
+//
+//		System.out.println("Blobs in container:");
+//		for (BlobItem blobItem : containerClient.listBlobs()) {
+//			System.out.println(" - " + blobItem.getName());
+//		}
+//
+//		String objectKey = "81/tasks/1109/f0afec14-71f1-4969-8b7a-b1d5ab1ced53.pdf";
+//		BlobClient blobClient = containerClient.getBlobClient(objectKey);
+//
+//		if (blobClient.exists()) {
+//			blobClient.delete();
+//			System.out.println("Blob deletado: " + objectKey);
+//		} else {
+//			System.out.println("Blob não encontrado: " + objectKey);
+//		}
+//
+//		for (BlobItem blobItem : containerClient.listBlobs()) {
+//			System.out.println(" - " + blobItem.getName());
+//		}
+
+
 ////		Path filePath = Paths.get("/Users/vicentejluz/Downloads/taskmanager/logs/taskmanager-7.log");
 ////
 ////		String mimeType = Files.probeContentType(filePath);

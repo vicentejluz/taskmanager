@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 public class FileMetaDataServiceImpl implements FileMetadataService {
@@ -46,7 +45,7 @@ public class FileMetaDataServiceImpl implements FileMetadataService {
 
     @Override
     @Transactional(readOnly = true)
-    public FileMetadata findById(UUID id) {
+    public FileMetadata findById(Long id) {
         logger.info("Finding file metadata | id={}", id);
         return fileMetadataRepository.findById(id).orElseThrow(() ->{
             logger.debug("File metadata not found | id={}", id);

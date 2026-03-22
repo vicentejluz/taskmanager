@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS tb_file_metadata (
-    id UUID PRIMARY KEY NOT NULL,
+    id BIGSERIAL PRIMARY KEY NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     path VARCHAR(255) NOT NULL,
     extension VARCHAR(10) NOT NULL,

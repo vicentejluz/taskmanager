@@ -113,7 +113,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     @Transactional(readOnly = true)
-    public FileDownloadResult download(UUID id, Long userId) {
+    public FileDownloadResult download(Long id, Long userId) {
         logger.info("Start downloading file | id={}", id);
         FileMetadata fileMetadata = validateOwnership(id, userId);
 
@@ -139,7 +139,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @Override
     @Transactional
-    public void delete(UUID id, Long userId) {
+    public void delete(Long id, Long userId) {
         logger.info("Start deleting file with id={}", id);
         FileMetadata fileMetadata = validateOwnership(id, userId);
 
@@ -180,7 +180,7 @@ public class FileStorageServiceImpl implements FileStorageService {
         return fileName.substring(fileName.lastIndexOf("."));
     }
 
-    private FileMetadata validateOwnership(UUID id, Long userId) {
+    private FileMetadata validateOwnership(Long id, Long userId) {
         FileMetadata fileMetadata = fileMetadataService.findById(id);
 
         if(!fileMetadata.getTask().getUser().getId().equals(userId)) {

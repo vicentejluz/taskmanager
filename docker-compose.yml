@@ -126,7 +126,7 @@ services:
     healthcheck:
       test: [ "CMD", "/mailpit", "readyz" ] # Command used by Docker to check if the container is healthy
       interval: 15s # Time between each health check execution
-      timeout: 30s # Maximum time Docker waits for the health check command to respond
+      timeout: 5s # Maximum time Docker waits for the health check command to respond
       retries: 3 # Number of consecutive failures before marking the container as unhealthy
       start_period: 10s # Initial delay before starting health checks (allows the service to boot)
 
@@ -148,7 +148,27 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "echo > /dev/tcp/localhost/9000 || exit 1"] # Command used by Docker to check if the container is healthy
       interval: 15s # Time between each health check execution
-      timeout: 30s # Maximum time Docker waits for the health check command to respond
+      timeout: 5s # Maximum time Docker waits for the health check command to respond
+      retries: 3 # Number of consecutive failures before marking the container as unhealthy
+      start_period: 10s # Initial delay before starting health checks (allows the service to boot)
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    container_name: azurite
+    restart: on-failure
+    command: azurite --blobHost 0.0.0.0 --blobPort 10000 --location /data --skipApiVersionCheck
+    environment:
+      AZURITE_ACCOUNTS: ${AZURITE_ACCOUNT}:${AZURITE_KEY}
+    ports:
+      - "10000:10000" # Blob service
+    volumes:
+      - azurite-data:/data
+    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://127.0.0.1:10000 >/dev/null 2>&1; [ $? -ne 4 ]" ] # Command used by Docker to check if the container is healthy
+      interval: 15s # Time between each health check execution
+      timeout: 5s # Maximum time Docker waits for the health check command to respond
       retries: 3 # Number of consecutive failures before marking the container as unhealthy
       start_period: 10s # Initial delay before starting health checks (allows the service to boot)
 
@@ -157,6 +177,7 @@ volumes:
   es_data:
   mailpit-data:
   minio-data:
+  azurite-data:
 
 networks:
   elk-network:

@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.UUID;
 
 @Tag(
         name = "File Storage",
@@ -147,10 +146,10 @@ public interface FileStorageControllerDoc {
     ResponseEntity<Resource> download(
             @Parameter(
                     description = "Unique identifier of the file",
-                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    example = "123",
                     required = true
             )
-            UUID id,
+            Long id,
             User user
     );
 
@@ -185,9 +184,9 @@ public interface FileStorageControllerDoc {
     ResponseEntity<Void> delete(
             @Parameter(
                     description = "Unique identifier of the file",
-                    example = "550e8400-e29b-41d4-a716-446655440000",
+                    example = "123",
                     required = true
             )
-            UUID id,
+            Long id,
             User user);
 }

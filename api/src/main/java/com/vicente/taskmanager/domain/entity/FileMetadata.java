@@ -1,19 +1,11 @@
 package com.vicente.taskmanager.domain.entity;
 
+import com.vicente.taskmanager.domain.entity.base.BaseEntity;
 import jakarta.persistence.*;
-import org.hibernate.annotations.Generated;
-import org.hibernate.generator.EventType;
-
-import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "tb_file_metadata")
-public class FileMetadata {
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
-
+public class FileMetadata extends BaseEntity {
     @Column(nullable = false)
     private String fileName;
 
@@ -36,11 +28,6 @@ public class FileMetadata {
     @JoinColumn(name = "task_id", nullable = false)
     private Task task;
 
-    // Informa que o campo é gerado pelo banco na hora do insert. O Hibernate então vai ler o valor do banco após o insert automaticamente.
-    @Generated(event = EventType.INSERT)
-    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
-    private OffsetDateTime createdAt;
-
     public FileMetadata() {
     }
 
@@ -53,10 +40,6 @@ public class FileMetadata {
         this.storedFileName = storedFileName;
         this.size = size;
         this.task = task;
-    }
-
-    public UUID getId() {
-        return id;
     }
 
     public String getFileName() {
@@ -85,10 +68,6 @@ public class FileMetadata {
 
     public Task getTask() {
         return task;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
     }
 
     public void setFileName(String fileName) {

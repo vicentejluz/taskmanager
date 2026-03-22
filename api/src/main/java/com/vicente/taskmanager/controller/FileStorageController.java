@@ -21,7 +21,6 @@ import org.springframework.web.util.UriUtils;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -45,7 +44,7 @@ public class FileStorageController implements FileStorageControllerDoc {
         FileStorageResponseDTO fileStorageResponseDTO = fileStorageService.upload(file, taskId, user.getId());
 
         URI uri = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/v1/files/{fileId}/download")
-                .buildAndExpand(fileStorageResponseDTO.id()).toUri();
+                .buildAndExpand(fileStorageResponseDTO.fileId()).toUri();
 
         return ResponseEntity.created(uri).body(fileStorageResponseDTO);
     }
@@ -62,7 +61,7 @@ public class FileStorageController implements FileStorageControllerDoc {
     }
 
     @GetMapping("/files/{fileId}/download")
-    public ResponseEntity<Resource> download(@PathVariable("fileId") UUID id, @AuthenticationPrincipal User user){
+    public ResponseEntity<Resource> download(@PathVariable("fileId") Long id, @AuthenticationPrincipal User user){
         logger.debug("GET /api/v1/files/{fileId}/download download called | userId={} fileId={}", user.getId(), id);
         FileDownloadResult fileDownload = fileStorageService.download(id,  user.getId());
 
@@ -83,7 +82,7 @@ public class FileStorageController implements FileStorageControllerDoc {
     }
 
     @DeleteMapping("/files/{fileId}/delete")
-    public ResponseEntity<Void> delete(@PathVariable UUID fileId, @AuthenticationPrincipal User user){
+    public ResponseEntity<Void> delete(@PathVariable Long fileId, @AuthenticationPrincipal User user){
         logger.debug("DELETE /api/v1/files/{fileId}/delete delete called | userId={} fileId={}", user.getId(), fileId);
         fileStorageService.delete(fileId,  user.getId());
         return ResponseEntity.noContent().build();
