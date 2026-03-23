@@ -17,7 +17,7 @@ import software.amazon.awssdk.services.s3.S3Configuration;
 
 @Configuration
 @EnableConfigurationProperties(S3StorageProperties.class)
-@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3")
 public class S3StorageConfig {
     @Bean
     public S3Client s3Client(S3StorageProperties s3StorageProperties) {

@@ -193,12 +193,25 @@ public class FileStorageServiceImpl implements FileStorageService {
     private String sanitizeFileName(String fileName) {
         // normaliza unicode (corrige ç, á, etc)
         fileName = Normalizer.normalize(fileName, Normalizer.Form.NFC);
+
+        // remove path traversal ".."
+        fileName = fileName.replaceAll("\\.{2,}", "_");
+
+        // remove pontos no início do nome (evita arquivos ocultos)
+        fileName = fileName.replaceAll("^\\.+", "");
+
         // remove quebra de linha (CRLF injection)
         fileName = fileName.replaceAll("[\\r\\n]", "");
+
         // permite unicode + espaço + parênteses + emoji
         fileName = fileName.replaceAll("[^\\p{L}\\p{N}\\p{M}\\p{So}._\\- ()]", "_");
+
         // normaliza espaços
-        fileName = fileName.trim().replaceAll(" +", " ");
+        fileName = fileName.replaceAll(" +", " ");
+
+        // remove espaços antes de pontos e limpa as pontas
+        // Ex: "foto .jpg" -> "foto.jpg"
+        fileName = fileName.replaceAll(" \\.", ".");
 
         return fileName.trim();
     }

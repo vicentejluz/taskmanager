@@ -34,4 +34,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
 /mailpit/
+/local-storage/

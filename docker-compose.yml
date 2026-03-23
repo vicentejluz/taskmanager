@@ -11,7 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
-    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    mem_limit: 512m # Limits the container to use a maximum of 512MB RAM
     cpus: 0.5 # Limits CPU usage to 25% of a single CPU core
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${PG_USER} -d ${PG_DB}"] # Command used by Docker to check if the container is healthy
@@ -30,7 +30,7 @@ services:
       # --maxmemory-policy allkeys-lru # Evicts the least recently used keys when memory limit is reached
     ports:
       - "6379:6379"
-    mem_limit: 312M # Limits the container to use a maximum of 312MB RAM
+    mem_limit: 312m # Limits the container to use a maximum of 312MB RAM
     cpus: 0.2 # Limits CPU usage to 20% of a single CPU core
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"] # Command used by Docker to check if the container is healthy
@@ -54,7 +54,7 @@ services:
         - es_data:/usr/share/elasticsearch/data
       networks:
         - elk-network
-      mem_limit: 768M # Limits the container to use a maximum of 1G RAM
+      mem_limit: 768m # Limits the container to use a maximum of 1G RAM
       cpus: 1 # Limits CPU usage to 100% of a single CPU core
       ulimits:
         memlock:
@@ -83,7 +83,7 @@ services:
         - ./logstash/pipeline:/usr/share/logstash/pipeline
       networks:
         - elk-network
-      mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+      mem_limit: 512m # Limits the container to use a maximum of 512MB RAM
       cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
 
   kibana:
@@ -99,7 +99,7 @@ services:
       - "5601:5601"
     networks:
       - elk-network
-    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    mem_limit: 512m # Limits the container to use a maximum of 512MB RAM
     cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
 
   mailpit:
@@ -121,7 +121,7 @@ services:
     volumes:
       - mailpit-data:/data  # 💾 Persistent storage for messages
       - ./mailpit/certs:/certs
-    mem_limit: 128M # Limits the container to use a maximum of 128MB RAM
+    mem_limit: 128m # Limits the container to use a maximum of 128MB RAM
     cpus: 0.25 # Limits CPU usage to 25% of a single CPU core
     healthcheck:
       test: [ "CMD", "/mailpit", "readyz" ] # Command used by Docker to check if the container is healthy
@@ -143,7 +143,7 @@ services:
       - "9001:9001" # Console Web
     volumes:
       - minio-data:/data
-    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    mem_limit: 512m # Limits the container to use a maximum of 512MB RAM
     cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
     healthcheck:
       test: ["CMD-SHELL", "echo > /dev/tcp/localhost/9000 || exit 1"] # Command used by Docker to check if the container is healthy
@@ -163,7 +163,7 @@ services:
       - "10000:10000" # Blob service
     volumes:
       - azurite-data:/data
-    mem_limit: 512M # Limits the container to use a maximum of 512MB RAM
+    mem_limit: 512m # Limits the container to use a maximum of 512MB RAM
     cpus: 0.5 # Limits CPU usage to 50% of a single CPU core
     healthcheck:
       test: [ "CMD-SHELL", "wget --spider -q http://127.0.0.1:10000 >/dev/null 2>&1; [ $? -ne 4 ]" ] # Command used by Docker to check if the container is healthy
@@ -171,6 +171,16 @@ services:
       timeout: 5s # Maximum time Docker waits for the health check command to respond
       retries: 3 # Number of consecutive failures before marking the container as unhealthy
       start_period: 10s # Initial delay before starting health checks (allows the service to boot)
+
+  storage-local:
+      image: alpine:3.23.3
+      container_name: storage-local
+      restart: unless-stopped
+      command: ["sh", "-c", "mkdir -p /data && tail -f /dev/null"] # create /data directory and keep container running idle (no service, only volume holder)
+      volumes:
+        - ./local-storage:/data
+      mem_limit: 32m # Limits the container to use a maximum of 32MB RAM
+      cpus: 0.05 # Limits CPU usage to 5% of a single CPU core
 
 volumes:
   pg-data:
