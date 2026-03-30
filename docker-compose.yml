@@ -24,16 +24,46 @@ services:
     image: redis:8.6.1-alpine3.23
     container_name: redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
-      # --requirepass ${REDIS_PASSWORD} # Require authentication before allowing commands
-      # --maxmemory 256mb # Limits Redis to using a maximum of 256MB of memory
-      # --maxmemory-policy allkeys-lru # Evicts the least recently used keys when memory limit is reached
+    # Configuração do Redis
+    # --requirepass ${REDIS_PASSWORD} - Exige senha para conectar ao Redis
+    # --tls-port 6380 - Porta TLS/SSL: 6380, (criptografada) para conexões seguras
+    # --port 0 - Desativa a porta padrão não segura
+    # --tls-cert-file /certs/redis.crt - Arquivo do certificado do servidor Redis
+    # --tls-key-file /certs/redis.key - Arquivo da chave privada correspondente ao certificado
+    # --tls-ca-cert-file /certs/ca.crt - Arquivo do certificado da autoridade certificadora (CA)
+    # -–tls-auth-clients no - NAO exige cert do cliente
+    # --maxmemory 256mb - Limite de memória: 256MB
+    # --maxmemory-policy allkeys-lru - Política de evicção: remove as chaves menos recentemente usadas quando atinge o limite
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD} 
+      --tls-port 6380 
+      --port 0 
+      --tls-cert-file /certs/redis.crt 
+      --tls-key-file /certs/redis.key
+      --tls-ca-cert-file /certs/ca.crt
+      --tls-auth-clients no
+      --maxmemory 256mb 
+      --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6380:6380"
+    volumes:
+      - ./redis/certs:/certs:ro # :ro in Docker means the volume is mounted read-only inside the container.
     mem_limit: 312m # Limits the container to use a maximum of 312MB RAM
     cpus: 0.2 # Limits CPU usage to 20% of a single CPU core
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"] # Command used by Docker to check if the container is healthy
+      # test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"] # Command used by Docker to check if the container is healthy
+      test: ["CMD",
+        "redis-cli", 
+        "-h", "127.0.0.1", 
+        "-p", "6380", 
+        "--tls", 
+        "--cacert", "/certs/ca.crt", 
+        "--cert", "/certs/redis.crt",
+        "--key", "/certs/redis.key",
+        "-a", "${REDIS_PASSWORD}", 
+        "ping"
+      ] # Command used by Docker to check if the container is healthy
       interval: 15s # Time between each health check execution
       timeout: 5s # Maximum time Docker waits for the health check command to respond
       retries: 5 # Number of consecutive failures before marking the container as unhealthy
@@ -110,8 +140,8 @@ services:
       MP_SMTP_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}        # 👤 SMTP login credentials
       MP_UI_AUTH: ${MAILPIT_USER}:${MAILPIT_PASSWORD}          # 🔑 Web UI login credentials
 #      MAIL_FROM_ADDRESS: taskmanager@mailpit.com
-      MP_SMTP_TLS_CERT: /certs/cert.pem
-      MP_SMTP_TLS_KEY: /certs/key.pem
+      MP_SMTP_TLS_CERT: /certs/mailpit.crt
+      MP_SMTP_TLS_KEY: /certs/mailpit.key
       MP_DATABASE: /data
       MP_MAX_MESSAGES: 3000                # 💌 Max number of stored messages
       MP_VERBOSE: true                      # 🪵 Enable verbose logging
@@ -120,7 +150,7 @@ services:
       - "1025:1025" # 📮 SMTP
     volumes:
       - mailpit-data:/data  # 💾 Persistent storage for messages
-      - ./mailpit/certs:/certs
+      - ./mailpit/certs:/certs:ro # :ro in Docker means the volume is mounted read-only inside the container.
     mem_limit: 128m # Limits the container to use a maximum of 128MB RAM
     cpus: 0.25 # Limits CPU usage to 25% of a single CPU core
     healthcheck:

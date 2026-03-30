@@ -1,7 +1,10 @@
 package com.vicente.taskmanager.domain.entity;
 
 import com.vicente.taskmanager.domain.entity.base.BaseEntity;
+import com.vicente.taskmanager.domain.enums.FileMetadataStatus;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "tb_file_metadata")
@@ -28,6 +31,11 @@ public class FileMetadata extends BaseEntity {
     @JoinColumn(name = "task_id", nullable = false)
     private Task task;
 
+    @Enumerated(value =  EnumType.STRING)
+    @JdbcType(value = PostgreSQLEnumJdbcType.class)
+    @Column(nullable = false)
+    private FileMetadataStatus status;
+
     public FileMetadata() {
     }
 
@@ -40,6 +48,7 @@ public class FileMetadata extends BaseEntity {
         this.storedFileName = storedFileName;
         this.size = size;
         this.task = task;
+        this.status = FileMetadataStatus.PENDING;
     }
 
     public String getFileName() {
@@ -70,6 +79,10 @@ public class FileMetadata extends BaseEntity {
         return task;
     }
 
+    public FileMetadataStatus getStatus() {
+        return status;
+    }
+
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
@@ -78,19 +91,15 @@ public class FileMetadata extends BaseEntity {
         this.path = path;
     }
 
-    public void setExtension(String extension) {
-        this.extension = extension;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
     public void setSize(Long size) {
         this.size = size;
     }
 
     public void setTask(Task task) {
         this.task = task;
+    }
+
+    public void setStatus(FileMetadataStatus status) {
+        this.status = status;
     }
 }

@@ -11,4 +11,17 @@
 
     <artifactId>storage-core</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+        <dependency>
+            <groupId>org.realityforge.org.jetbrains.annotations</groupId>
+            <artifactId>org.jetbrains.annotations</artifactId>
+            <version>1.7.0</version>
+        </dependency>
+    </dependencies>
+
 </project>

@@ -87,6 +87,11 @@
             <version>1.83</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>3.3.0</version>
+        </dependency>
+        <dependency>
             <groupId>com.vicente</groupId>
             <artifactId>storage-s3</artifactId>
             <version>${project.version}</version>

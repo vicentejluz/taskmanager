@@ -1,13 +1,19 @@
 package com.vicente.taskmanager.config;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SslOptions;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
+import java.io.File;
+import java.time.Duration;
 
 @Configuration
 public class RedisConfig {
@@ -18,16 +24,83 @@ public class RedisConfig {
     @Value("${spring.data.redis.password}")
     private String password;
 
+    @Value("${redis.ca}")
+    private File ca;
+
     @Bean
-    public RedisConnectionFactory redisConnectionFactory() {
+    @Profile("dev")
+    public RedisConnectionFactory redisLocalConnectionFactory() {
+        // Configuração básica do Redis standalone (host, porta e senha)
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+        config.setPassword(password); // Define a senha do Redis, obrigatória se o Redis exigir autenticação
+
+        // Configuração do cliente Lettuce (cliente padrão do Spring Boot para Redis)
+        LettuceClientConfiguration clientConf = LettuceClientConfiguration
+                .builder()
+                // Habilita SSL/TLS, necessário para conexões seguras com Redis (como no Azure Redis)
+                .useSsl()
+                .and()
+                // Define o timeout máximo para comandos Redis (evita que requisições travem indefinidamente)
+                .commandTimeout(Duration.ofSeconds(10))
+                // Configurações adicionais do cliente Lettuce
+                .clientOptions(ClientOptions
+                        .builder()
+                        // Configura SSL com o certificado da CA, garantindo que o Java confie no certificado do servidor Redis
+                        .sslOptions(SslOptions.builder()
+                                .jdkSslProvider() // Usa o provedor SSL nativo do Java (JSSE)
+                                .trustManager(ca) // Arquivo .crt da CA que assinou o certificado do servidor
+                                .build())
+                        // Habilita reconexão automática caso a conexão seja perdida
+                        // Essencial para ambientes de cloud, onde a rede pode ter instabilidade
+                        .autoReconnect(true)
+                        .build())
+                .build();
+
+        // Cria a ConnectionFactory usando:
+        // 1. Configuração standalone do Redis (host, porta, senha)
+        // 2. Configuração do cliente Lettuce (SSL, timeout, reconexão)
+        // Lettuce gerencia internamente pool de conexões e threads, permitindo uso eficiente do Redis
+        return new LettuceConnectionFactory(config, clientConf);
+    }
+
+    @Bean
+    @Profile("prod")
+    public RedisConnectionFactory redisAzureConnectionFactory() {
+        // Configuração básica para conexão com Redis standalone (não cluster)
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+
+        // Define o hostname do Redis (ex: redis-study.redis.cache.windows.net)
         config.setHostName(host);
+
+        // Define a porta (Azure Redis usa 6380 com SSL)
         config.setPort(port);
+
+        // Define a senha de autenticação (Primary ou Secondary key do Azure)
         config.setPassword(password);
 
-        // Implementação baseada no cliente Lettuce (padrão do Spring Boot)
-        // Ele gerencia pool de conexões e comunicação com Redis
-        return new LettuceConnectionFactory(config);
+        // Configuração do cliente Lettuce (cliente padrão do Spring Boot para Redis)
+        LettuceClientConfiguration clientConf = LettuceClientConfiguration
+                .builder()
+                // Habilita SSL (obrigatório no Azure Cache for Redis)
+                .useSsl()
+                .and()
+                // Tempo máximo para execução de um comando Redis
+                // Evita que requisições fiquem travadas indefinidamente
+                .commandTimeout(Duration.ofSeconds(10))
+                // Opções adicionais do cliente Lettuce
+                .clientOptions(ClientOptions
+                        .builder()
+                        // Reconecta automaticamente caso a conexão caia
+                        // Importante para ambientes cloud (Azure/AWS)
+                        .autoReconnect(true)
+                        .build())
+                .build();
+
+        // Cria a ConnectionFactory usando:
+        // - Configuração standalone (host, porta, senha)
+        // - Configuração do cliente (SSL, timeout, reconnect)
+        // Lettuce é o cliente padrão e gerencia pool e conexões internamente
+        return new LettuceConnectionFactory(config, clientConf);
     }
 
     @Bean

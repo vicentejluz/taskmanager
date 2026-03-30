@@ -1,8 +1,10 @@
 package com.vicente.storage;
 
-import com.vicente.storage.exception.StorageException;
+import com.vicente.storage.dto.StorageObject;
+import com.vicente.storage.util.StorageLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
@@ -11,6 +13,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.InputStream;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
 public class S3StorageService implements StorageService {
     // Cliente S3 que será usado para comunicar com o MinIO/S3
@@ -43,11 +48,25 @@ public class S3StorageService implements StorageService {
             );
             logger.info("Successfully uploaded file '{}' to S3 bucket '{}'", objectKey, bucketName);
         }catch (S3Exception e){
-            logger.error("Failed to upload file '{}' to S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("Error sending file to S3: " + e.getMessage(), e.statusCode(), e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Failed to upload file '{}' to S3 bucket '{}'",
+                    "Error sending file to S3: " + e.getMessage(),
+                    e.statusCode(),
+                    e,
+                    objectKey,
+                    bucketName
+            );
         }catch (SdkException e){
-            logger.error("SDK error while uploading file '{}' to S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("SDK error: " + e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR, e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "SDK error while uploading file '{}' to S3 bucket '{}'",
+                    "SDK error: " + e.getMessage(),
+                    HttpStatusCode.INTERNAL_SERVER_ERROR,
+                    e,
+                    objectKey,
+                    bucketName
+            );
         }
     }
 
@@ -63,11 +82,25 @@ public class S3StorageService implements StorageService {
                     ResponseTransformer.toInputStream()
             );
         }catch (S3Exception e){
-            logger.error("Failed to download file '{}' from S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("Error download file from S3: " + e.getMessage(), e.statusCode(), e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Failed to download file '{}' from S3 bucket '{}'",
+                    "Error downloading file from S3: " + e.getMessage(),
+                    e.statusCode(),
+                    e,
+                    objectKey,
+                    bucketName
+            );
         }catch (SdkException e){
-            logger.error("SDK error while downloading file '{}' from S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("SDK error: " + e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR, e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "SDK error while downloading file '{}' from S3 bucket '{}'",
+                    "SDK error: " + e.getMessage(),
+                    HttpStatusCode.INTERNAL_SERVER_ERROR,
+                    e,
+                    objectKey,
+                    bucketName
+            );
         }
     }
 
@@ -83,11 +116,105 @@ public class S3StorageService implements StorageService {
             );
             logger.info("Successfully deleted file '{}' from S3 bucket '{}'", objectKey, bucketName);
         }catch (S3Exception e){
-            logger.error("Failed to delete file '{}' from S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("Error deleting file from S3: " + e.getMessage(), e.statusCode(), e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Failed to delete file '{}' from S3 bucket '{}'",
+                    "Error deleting file from S3: " + e.getMessage(),
+                    e.statusCode(),
+                    e,
+                    objectKey,
+                    bucketName
+            );
         } catch (SdkException e){
-            logger.error("SDK error while deleting file '{}' from S3 bucket '{}'", objectKey, bucketName, e);
-            throw new StorageException("SDK error: " + e.getMessage(), HttpStatusCode.INTERNAL_SERVER_ERROR, e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "SDK error while deleting file '{}' from S3 bucket '{}'",
+                    "SDK error: " + e.getMessage(),
+                    HttpStatusCode.INTERNAL_SERVER_ERROR,
+                    e,
+                    objectKey,
+                    bucketName
+            );
+        }
+    }
+
+    @Override
+    public boolean exists(String objectKey) {
+        try {
+            logger.info("Checking if file '{}' exists in S3 bucket '{}'", objectKey, bucketName);
+            HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+
+            s3Client.headObject(headObjectRequest);
+
+            logger.info("File '{}' exists in S3 bucket '{}'", objectKey, bucketName);
+            return  true;
+        }catch (NoSuchKeyException e){
+            logger.warn("File '{}' not found in S3 bucket '{}'", objectKey, bucketName);
+            return false;
+        }catch (S3Exception e){
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Failed to check existence of file '{}' in S3 bucket '{}'",
+                    "Error checking file existence in S3: " + e.getMessage(),
+                    e.statusCode(),
+                    e,
+                    objectKey,
+                    bucketName
+            );
+        } catch (SdkException e){
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "SDK error while checking existence of file '{}' in S3 bucket '{}'",
+                    "SDK error: " + e.getMessage(),
+                    HttpStatusCode.INTERNAL_SERVER_ERROR,
+                    e,
+                    objectKey,
+                    bucketName
+            );
+        }
+    }
+
+    @Override
+    public List<StorageObject> list(String path) {
+        try {
+            logger.info("Listing files from S3 bucket '{}' with prefix '{}'", bucketName, path);
+            List<StorageObject> list = new ArrayList<>();
+            ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .prefix(path)
+                    .build();
+
+            ListObjectsV2Response listObjectsV2Response = s3Client.listObjectsV2(listObjectsV2Request);
+
+            listObjectsV2Response.contents().forEach(c -> list.add(new StorageObject(c.key(),
+                    c.size(), c.lastModified().atOffset(ZoneOffset.UTC))));
+
+            logger.info("Successfully listed {} file(s) from S3 bucket '{}' with prefix '{}'",
+                    list.size(), bucketName, path);
+            return list;
+        }catch (S3Exception e){
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Failed to list files from S3 bucket '{}' with prefix '{}'",
+                    "Error listing files from S3: " + e.getMessage(),
+                    e.statusCode(),
+                    e,
+                    bucketName,
+                    path
+            );
+        } catch (SdkException e){
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "SDK error while listing files from S3 bucket '{}' with prefix '{}'",
+                    "SDK error: " + e.getMessage(),
+                    HttpStatusCode.INTERNAL_SERVER_ERROR,
+                    e,
+                    bucketName,
+                    path
+            );
         }
     }
 }

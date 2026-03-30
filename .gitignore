@@ -6,6 +6,10 @@ target/
 .env
 requests.http
 /logs/
+.DS_Store
+/mailpit/certs/mailpit.key
+/redis/certs/redis.key
+/local-storage/
 
 ### STS ###
 .apt_generated
@@ -34,6 +38,3 @@ build/
 
 ### VS Code ###
 .vscode/
-
-/mailpit/
-/local-storage/

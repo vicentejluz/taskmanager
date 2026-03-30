@@ -3,8 +3,11 @@ package com.vicente.taskmanager.controller;
 import com.vicente.taskmanager.controller.docs.FileStorageControllerDoc;
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.internal.FileDownloadResult;
+import com.vicente.taskmanager.dto.request.FileStorageRenameRequestDTO;
+import com.vicente.taskmanager.dto.response.FileStorageRenameResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.service.FileStorageService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.InputStreamResource;
@@ -47,6 +50,18 @@ public class FileStorageController implements FileStorageControllerDoc {
                 .buildAndExpand(fileStorageResponseDTO.fileId()).toUri();
 
         return ResponseEntity.created(uri).body(fileStorageResponseDTO);
+    }
+
+    @PatchMapping("/files/{fileId}/rename")
+    public ResponseEntity<FileStorageRenameResponseDTO> rename(
+            @PathVariable Long fileId,
+            @RequestBody @Valid FileStorageRenameRequestDTO fileStorageRenameRequestDTO,
+            @AuthenticationPrincipal User user){
+        logger.debug("PATH /api/v1/files/{fileId}/rename rename called | userId={} fileId={} newFileName={}",
+                user.getId(), fileId, fileStorageRenameRequestDTO.newFileName());
+        FileStorageRenameResponseDTO fileStorageRenameResponseDTO = fileStorageService.rename(
+                fileId, user.getId(), fileStorageRenameRequestDTO.newFileName());
+        return ResponseEntity.ok(fileStorageRenameResponseDTO);
     }
 
     @GetMapping("/tasks/{taskId}/files")

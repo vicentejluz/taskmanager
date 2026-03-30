@@ -1,6 +1,8 @@
 package com.vicente.taskmanager.controller.docs;
 
 import com.vicente.taskmanager.domain.entity.User;
+import com.vicente.taskmanager.dto.request.FileStorageRenameRequestDTO;
+import com.vicente.taskmanager.dto.response.FileStorageRenameResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.exception.error.StandardError;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,6 +10,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -74,6 +77,63 @@ public interface FileStorageControllerDoc {
                     required = true
             )
             Long taskId,
+            User user
+    );
+
+    @Operation(
+            summary = "Rename a file",
+            description = "Renames a file by updating its original name in metadata. " +
+                    "The file extension remains unchanged. Only the file owner can rename it. " +
+                    "Invalid characters are sanitized before saving."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "File renamed successfully",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = FileStorageRenameResponseDTO.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid file name (null, blank or contains only invalid characters)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "User does not have permission to rename this file",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "File not found",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error during rename",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class))
+            )
+    })
+    ResponseEntity<FileStorageRenameResponseDTO> rename(
+            @Parameter(
+                    description = "ID of the file to rename",
+                    example = "10",
+                    required = true
+            )
+            Long fileId,
+
+            @RequestBody(
+                    description = "New file name payload",
+                    required = true,
+                    content = @Content(
+                            schema = @Schema(implementation = FileStorageRenameRequestDTO.class)
+                    )
+            )
+            FileStorageRenameRequestDTO fileStorageRenameRequestDTO,
             User user
     );
 

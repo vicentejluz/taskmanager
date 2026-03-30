@@ -57,7 +57,13 @@
             <appender-ref ref="FILE"/>
             <appender-ref ref="LOGSTASH"/>
         </logger>
+        
         <logger name="com.vicente.taskmanager" level="DEBUG">
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="LOGSTASH"/>
+        </logger>
+
+        <logger name="com.vicente.storage" level="DEBUG">
             <appender-ref ref="FILE"/>
             <appender-ref ref="LOGSTASH"/>
         </logger>

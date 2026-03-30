@@ -21,6 +21,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Duration;
@@ -442,6 +443,19 @@ public class ResourceExceptionHandler {
     public ResponseEntity<StandardError> accountDeleted(AccountDeletedException e, HttpServletRequest request) {
         String error = "Account Deleted Error";
         HttpStatus status = HttpStatus.LOCKED;
+
+        logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
+
+        StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
+                request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<StandardError> maxUploadSizeExceeded(MaxUploadSizeExceededException e, HttpServletRequest request) {
+        String error = "Max Upload Size Exceeded Error";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
 
         logger.warn("{} | status={} method={} path={} message={}", error, status.value(),
                 request.getMethod(), request.getRequestURI(), e.getMessage());
