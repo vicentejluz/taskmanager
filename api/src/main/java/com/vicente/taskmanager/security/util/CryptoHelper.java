@@ -148,10 +148,28 @@ public final class CryptoHelper {
      */
     public static String hashValue(String value) {
         try {
+            // Cria uma instância do gerador de hash usando o algoritmo SHA-256
+            // SHA-256 é uma função criptográfica que transforma dados em uma "assinatura" única
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
 
+            // Fluxo:
+            // "abc" (String)
+            //    ↓
+            // [97, 98, 99] (bytes UTF-8)
+            //    ↓
+            // SHA-256
+            //    ↓
+            // byte[32] (hash criptográfico) ex:
+            // [-70, 120, 22, -65, -113, 1, -49, -22, 65, 65, 64, -34, 93, -82, 34, 35,
+            //  -80, 3, 97, -93, -106, 23, 122, -100, -76, 16, -1, 97, -14, 0, 21, -83]
+            // (sempre 32 bytes, valor muda completamente se a entrada mudar)
             byte[] hash = messageDigest.digest(value.getBytes(StandardCharsets.UTF_8));
 
+            // Converte o array de bytes em uma String Base64 URL-safe
+            // Isso é necessário porque:
+            // - byte[] não pode ser enviado diretamente em HTTP/URL
+            // - Base64 transforma bytes binários em texto
+            // - URL-safe evita caracteres problemáticos como + / =
             return encode(hash);
         } catch (NoSuchAlgorithmException e) {
             logger.error("Hash Algorithm Not Supported!", e);
@@ -236,7 +254,7 @@ public final class CryptoHelper {
         if (value1 == null || value2 == null) return false;
 
         try {
-            var digestA = Base64.getUrlDecoder().decode(value1);
+            byte[] digestA = Base64.getUrlDecoder().decode(value1);
             byte[] digestB = Base64.getUrlDecoder().decode(value2);
 
             return MessageDigest.isEqual(digestA, digestB);

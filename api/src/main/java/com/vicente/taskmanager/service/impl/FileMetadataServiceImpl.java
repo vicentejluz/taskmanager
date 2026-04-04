@@ -80,10 +80,18 @@ public class FileMetadataServiceImpl implements FileMetadataService {
     }
 
     @Override
+    public FileMetadata findByStoredFileName(String storedFileName) {
+        return fileMetadataRepository.findActiveByStorageFileName(storedFileName).orElseThrow(() -> {
+            logger.debug("File metadata not found | storageFileName={}", storedFileName);
+            return new FileMetadataNotFoundException("File metadata not found");
+        });
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<FileMetadata> findAllByTaskId(Long taskId) {
         logger.info("Finding file metadata by taskId | taskId={}", taskId);
-        return fileMetadataRepository.findAllByTaskId(taskId);
+        return fileMetadataRepository.findAllActiveByTaskId(taskId);
     }
 
     @Override
@@ -108,13 +116,13 @@ public class FileMetadataServiceImpl implements FileMetadataService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasReachedMaxFiles(Long taskId) {
-        return fileMetadataRepository.countAllByTaskId(taskId) >= maxFilesPerTask;
+        return fileMetadataRepository.countActiveByTaskId(taskId) >= maxFilesPerTask;
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean hasReachedMaxTotalSize(Long taskId, long size) {
-        long currentTotalSize = fileMetadataRepository.sumAllByTaskId(taskId);
+        long currentTotalSize = fileMetadataRepository.sumActiveSizeByTaskId(taskId);
         long newTotalSize = currentTotalSize + size;
 
         logger.debug("Checking total file size limit | taskId={} | currentTotal={} bytes | newFileSize={} bytes | " +
@@ -126,7 +134,7 @@ public class FileMetadataServiceImpl implements FileMetadataService {
 
 
     private FileMetadata getFileMetadataOrThrow(Long id) {
-        return fileMetadataRepository.findById(id).orElseThrow(() -> {
+        return fileMetadataRepository.findActiveById(id).orElseThrow(() -> {
             logger.debug("File metadata not found | id={}", id);
             return new FileMetadataNotFoundException("File metadata not found");
         });

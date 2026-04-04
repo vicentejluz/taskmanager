@@ -1,5 +1,6 @@
-package com.vicente.taskmanager.security.service;
+package com.vicente.taskmanager.cache;
 
+import com.vicente.taskmanager.security.service.TokenService;
 import io.jsonwebtoken.Claims;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

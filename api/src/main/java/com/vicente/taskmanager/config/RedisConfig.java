@@ -11,7 +11,11 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
 import java.io.File;
 import java.time.Duration;
 
@@ -111,11 +115,48 @@ public class RedisConfig {
     }
 
     /*
-     * RedisTemplate configurado manualmente para String
-     * Faz basicamente a mesma coisa que StringRedisTemplate,
-     * mas com configuração explícita de serializers.
+     * RedisTemplate configurado para salvar objetos Java
+     * usando JSON como formato de armazenamento.
+     * Usado quando queremos armazenar entidades completas.
      */
-//    @Bean
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+
+        // Serializer que converte objetos Java em JSON usando Jackson
+        GenericJacksonJsonRedisSerializer serializer =
+                GenericJacksonJsonRedisSerializer.builder().build();
+
+        // Template principal para operações Redis
+        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+
+        // Conexão com Redis
+        redisTemplate.setConnectionFactory(connectionFactory);
+
+        // Chaves salvas como String
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+
+        // Valores convertidos para JSON
+        redisTemplate.setValueSerializer(serializer);
+
+        // Chaves dentro de HASH como String
+        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
+
+        // Valores dentro de HASH como JSON
+        redisTemplate.setHashValueSerializer(serializer);
+
+        // Inicializa propriedades do template
+        redisTemplate.afterPropertiesSet();
+
+        return redisTemplate;
+    }
+}
+
+/*
+ * RedisTemplate configurado manualmente para String
+ * Faz basicamente a mesma coisa que StringRedisTemplate,
+ * mas com configuração explícita de serializers.
+ */
+/*    @Bean
 //    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
 //
 //        // Cria o template principal para operações Redis
@@ -141,41 +182,4 @@ public class RedisConfig {
 //
 //        return redisTemplate;
 //    }
-
-    /*
-     * RedisTemplate configurado para salvar objetos Java
-     * usando JSON como formato de armazenamento.
-     * Usado quando queremos armazenar entidades completas.
-     */
-//    @Bean
-//    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-//
-//        // Serializer que converte objetos Java em JSON usando Jackson
-//        GenericJacksonJsonRedisSerializer serializer =
-//                GenericJacksonJsonRedisSerializer.builder().build();
-//
-//        // Template principal para operações Redis
-//        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-//
-//        // Conexão com Redis
-//        redisTemplate.setConnectionFactory(connectionFactory);
-//
-//        // Chaves salvas como String
-//        redisTemplate.setKeySerializer(new StringRedisSerializer());
-//
-//        // Valores convertidos para JSON
-//        redisTemplate.setValueSerializer(serializer);
-//
-//        // Chaves dentro de HASH como String
-//        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-//
-//        // Valores dentro de HASH como JSON
-//        redisTemplate.setHashValueSerializer(serializer);
-//
-//        // Inicializa propriedades do template
-//        redisTemplate.afterPropertiesSet();
-//
-//        return redisTemplate;
-//    }
-}
-
+ */

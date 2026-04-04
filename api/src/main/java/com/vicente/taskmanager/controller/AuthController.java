@@ -9,7 +9,7 @@ import com.vicente.taskmanager.dto.response.MessageResponseDTO;
 import com.vicente.taskmanager.dto.response.TokenResponseDTO;
 import com.vicente.taskmanager.dto.response.RegisterUserResponseDTO;
 import com.vicente.taskmanager.domain.enums.TokenType;
-import com.vicente.taskmanager.security.TokenExtractor;
+import com.vicente.taskmanager.security.util.TokenExtractor;
 import com.vicente.taskmanager.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

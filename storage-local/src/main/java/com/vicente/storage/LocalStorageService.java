@@ -2,6 +2,7 @@ package com.vicente.storage;
 
 import com.vicente.storage.dto.StorageObject;
 import com.vicente.storage.exception.StorageException;
+import com.vicente.storage.security.LocalStorageHmacTokenGenerator;
 import com.vicente.storage.util.StorageLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +11,11 @@ import org.slf4j.event.Level;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,38 +23,40 @@ import java.util.stream.Stream;
 
 public class LocalStorageService implements StorageService {
     private final Path rootPath;
+    private final String secret;
     private static final Logger logger = LoggerFactory.getLogger(LocalStorageService.class);
 
-    public LocalStorageService(String rootPath) {
+    public LocalStorageService(String rootPath, String secret) {
         this.rootPath = Paths.get(rootPath).toAbsolutePath().normalize();
+        this.secret = secret;
         logger.info("LocalStorageService initialized at root path: {}", this.rootPath);
     }
 
     @Override
-    public void upload(InputStream file, long contentLength, String objectKey, String mimeType) {
+    public void upload(Path file, long contentLength, String objectKey, String mimeType) {
         try {
            Path path = rootPath.resolve(objectKey).normalize();
 
-            ensurePathWithinRoot(path);
+           ensurePathWithinRoot(path);
 
            Files.createDirectories(path.getParent());
 
-            try(InputStream in = file) {
-                long copied = Files.copy(in, path);
-                logger.info("Uploaded file '{}' ({} bytes)", path, copied);
+           long sourceSize = Files.size(file);
 
-                if (contentLength > 0 && copied != contentLength) {
-                    Files.deleteIfExists(path);
-                    deleteIfEmptyRecursively(path.getParent(), rootPath);
-                    logAndThrow(
-                            "File size mismatch for file '{}', expected {}, got {}",
-                            "File size mismatch",
-                            400,
-                            objectKey, contentLength, copied
-                    );
-                }
-            }
+           Files.copy(file, path);
 
+           logger.info("Uploaded file '{}' ({} bytes, MIME={})", path, sourceSize, mimeType);
+
+           if (contentLength > 0 && sourceSize != contentLength) {
+                Files.deleteIfExists(path);
+                deleteIfEmptyRecursively(path.getParent(), rootPath);
+                logAndThrow(
+                    "File size mismatch for file '{}', expected {}, got {}",
+                    "File size mismatch",
+                    400,
+                    objectKey, contentLength, sourceSize
+                );
+           }
         } catch (IOException e) {
             logAndThrow(
                     "Failed to upload file '{}'",
@@ -89,6 +96,44 @@ public class LocalStorageService implements StorageService {
                     objectKey
             );
         }
+    }
+
+    @Override
+    public String generateSignedUrl(String objectKey, Duration duration, String contentDisposition) {
+        Path path = rootPath.resolve(objectKey).normalize();
+
+        ensurePathWithinRoot(path);
+
+        if(!Files.exists(path)) {
+            logAndThrow(
+                    "File does not exist: {}",
+                    "File not found: " + objectKey,
+                    404,
+                    path
+            );
+        }
+
+        logger.info("Generating signed URL for local storage | objectKey={} | duration={}s",
+                objectKey, duration.getSeconds());
+
+        long expireAt = OffsetDateTime.now().plus(duration).toEpochSecond();
+
+        String storageFileName = path.getFileName().toString();
+
+        String encodedContentDisposition = URLEncoder.encode(contentDisposition, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        String data = storageFileName + ":" + expireAt + ":" + encodedContentDisposition;
+
+        String token = LocalStorageHmacTokenGenerator.generateHmac256(secret.trim(), data);
+
+        logger.info("Signed URL generated successfully | objectKey={} | expireAt={}",
+                objectKey, expireAt);
+
+        return storageFileName +
+                "?exp=" + expireAt +
+                "&token=" + token +
+                "&rscd=" + encodedContentDisposition;
     }
 
     @Override

@@ -70,6 +70,7 @@ public class WebSecurityConfig {
                                 .authenticated()
                                 .requestMatchers("/api/v1/auth/**").permitAll()
                                 .requestMatchers(SWAGGER).permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/files/taskmanager-files/**").permitAll()
                                 .requestMatchers("/api/v1/users/me")
                                 .authenticated()
                                 .requestMatchers(HttpMethod.DELETE, "/api/v1/users/me/delete")

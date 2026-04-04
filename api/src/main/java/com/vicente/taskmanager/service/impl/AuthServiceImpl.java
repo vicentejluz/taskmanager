@@ -15,7 +15,7 @@ import com.vicente.taskmanager.domain.enums.AccountStatus;
 import com.vicente.taskmanager.domain.enums.TokenType;
 import com.vicente.taskmanager.domain.enums.UserRole;
 import com.vicente.taskmanager.repository.UserRepository;
-import com.vicente.taskmanager.security.service.AuthTokenStoreService;
+import com.vicente.taskmanager.cache.AuthTokenStoreService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.service.AuthService;
 import com.vicente.taskmanager.service.EmailService;

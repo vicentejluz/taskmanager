@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Duration;
@@ -281,7 +282,7 @@ public class ResourceExceptionHandler {
     }
 
     @ExceptionHandler({ OptimisticLockException.class, ObjectOptimisticLockingFailureException.class })
-    public ResponseEntity<StandardError> optimisticLock(Exception e, HttpServletRequest request) {
+    public ResponseEntity<StandardError> optimisticLock(HttpServletRequest request) {
         String error = "Optimistic Lock Error";
         HttpStatus status = HttpStatus.CONFLICT;
         String message = "Concurrent update detected. Please reload the resource and retry the operation.";
@@ -319,7 +320,7 @@ public class ResourceExceptionHandler {
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<StandardError> badCredentials(BadCredentialsException e, HttpServletRequest request) {
+    public ResponseEntity<StandardError> badCredentials(HttpServletRequest request) {
         String error = "Bad Credentials Error";
         HttpStatus status = HttpStatus.UNAUTHORIZED;
         String message = "Invalid email or password";
@@ -463,6 +464,16 @@ public class ResourceExceptionHandler {
         StandardError err = new StandardError(Instant.now(), status.value(), error, e.getMessage(),
                 request.getRequestURI());
         return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Void> responseStatus(ResponseStatusException e, HttpServletRequest request) {
+        String error = "Response Status Error";
+
+        logger.warn("{} | status={} method={} path={} message={}", error, e.getStatusCode().value(),
+                request.getMethod(), request.getRequestURI(), e.getReason());
+
+        return ResponseEntity.status(e.getStatusCode()).build();
     }
 
     @ExceptionHandler(Exception.class)

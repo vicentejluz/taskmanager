@@ -3,11 +3,14 @@ package com.vicente.taskmanager.service.impl;
 import com.vicente.storage.StorageService;
 import com.vicente.storage.exception.StorageException;
 import com.vicente.storage.util.StorageLogger;
+import com.vicente.taskmanager.cache.FileShareCacheEntry;
+import com.vicente.taskmanager.cache.FileShareUrlCache;
 import com.vicente.taskmanager.domain.entity.FileMetadata;
 import com.vicente.taskmanager.domain.entity.Task;
 import com.vicente.taskmanager.domain.enums.FileExtension;
 import com.vicente.taskmanager.domain.enums.TaskStatus;
 import com.vicente.taskmanager.dto.internal.FileDownloadResult;
+import com.vicente.taskmanager.dto.response.FileStorageDownloadUrlResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageRenameResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
@@ -31,10 +34,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.text.Normalizer;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,17 +54,28 @@ public class FileStorageServiceImpl implements FileStorageService {
     private final StorageService storageService;
     private final FileMetadataService fileMetadataService;
     private final TaskService taskService;
+    private final FileShareUrlCache fileShareUrlCache;
     private final Tika tika;
     private final DataSize maxFileSize;
+    private final Duration signedUrlExpiration;
+    private final String storageType;
+    private final String baseUrl;
     private static final TikaConfig TIKA_CONFIG = TikaConfig.getDefaultConfig();
     private static final Logger logger = LoggerFactory.getLogger(FileStorageServiceImpl.class);
 
     public FileStorageServiceImpl(StorageService storageService, FileMetadataService fileMetadataService,
-                                  TaskService taskService, @Value("${file.upload.max-size}") DataSize maxFileSize) {
+                                  TaskService taskService, FileShareUrlCache fileShareUrlCache,
+                                  @Value("${file.upload.max-size}") DataSize maxFileSize, @Value("${app.storage.signed-url-expiration}") Duration signedUrlExpiration,
+                                  @Value("${app.storage.type:local}") String storageType,
+                                  @Value("${app.storage.local.base-url:http://localhost:8080/api/v1/}") String baseUrl) {
         this.storageService = storageService;
         this.fileMetadataService = fileMetadataService;
         this.taskService = taskService;
+        this.fileShareUrlCache = fileShareUrlCache;
         this.maxFileSize = maxFileSize;
+        this.signedUrlExpiration = signedUrlExpiration;
+        this.storageType = storageType;
+        this.baseUrl = baseUrl;
         this.tika = new Tika();
     }
 
@@ -61,13 +83,13 @@ public class FileStorageServiceImpl implements FileStorageService {
     public FileStorageResponseDTO upload(MultipartFile file, Long taskId, Long userId) {
         validateUploadRequest(file, taskId, userId);
 
-        long size = file.getSize();
+        long contentLength = file.getSize();
 
-        validateFileSize(size);
+        validateFileSize(contentLength);
 
         validateMaxFilesLimit(taskId);
 
-        validateTotalSizeLimit(taskId, size);
+        validateTotalSizeLimit(taskId, contentLength);
 
         Task task = taskService.findByIdAndUserId(taskId, userId);
 
@@ -82,11 +104,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             String uuid = UUID.randomUUID().toString();
 
-            String fileName = buildFileName(file.getOriginalFilename(),  mimeType, uuid);
+            String validFileName = prepareFileName(uuid, file.getOriginalFilename(), mimeType);
 
-            String sanitizedFileName = sanitizeFileName(fileName);
-
-            String extension = getExtension(fileName);
+            String extension = getExtension(validFileName);
 
             String path = buildPath(userId, taskId);
 
@@ -96,16 +116,37 @@ public class FileStorageServiceImpl implements FileStorageService {
 
             String storedFileName = buildStoredFileName(uuid, extension);
 
-            String objectKey = buildObjectKey(path, storedFileName);
+            String objectKey = storageService.buildObjectKey(path, storedFileName);
 
-            return handleFileUpload(sanitizedFileName, path, storedFileName, extension, mimeType, size, task,
-                    inputStream, objectKey);
+            return handleFileUpload(validFileName, path, storedFileName, extension, mimeType, task,
+                    inputStream, contentLength, objectKey);
         } catch (IOException e) {
-            throw new StorageException("Failed to upload file: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value(), e);
+            throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "I/O error while uploading file: {}",
+                    "Failed to upload file: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    e,
+                    e.getMessage()
+            );
         } catch (MimeTypeException e) {
-            throw new StorageException("Error validating file media type and consistency." + e.getMessage(),
-                    HttpStatus.BAD_REQUEST.value(), e);
+            throw StorageLogger.logAndCreateException(
+                    Level.WARN,
+                    "Invalid mime type detected while uploading file: {}",
+                    "Error validating file media type and consistency: " + e.getMessage(),
+                    HttpStatus.BAD_REQUEST.value(),
+                    e,
+                    e.getMessage()
+            );
+
+        }catch (IllegalStateException e){
+             throw StorageLogger.logAndCreateException(
+                    Level.ERROR,
+                    "Error uploading file: {}",
+                    "Failed to upload file: " + e.getMessage(),
+                     HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    e,
+                    e.getMessage());
         }
     }
 
@@ -123,6 +164,8 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         newFileName = fileMetadataService.update(id, newFileName);
 
+        fileShareUrlCache.removeShareUrl(id);
+
         logger.info("File renamed successfully | id={}, newFileName={}", id, newFileName);
 
         return new FileStorageRenameResponseDTO(id, newFileName);
@@ -134,12 +177,34 @@ public class FileStorageServiceImpl implements FileStorageService {
         logger.info("Start downloading file | id={}", id);
         FileMetadata fileMetadata = validateOwnership(id, userId);
 
-        String objectKey = buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
+        String objectKey = storageService.buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
 
         InputStream inputStream = storageService.download(objectKey);
 
         return new FileDownloadResult(fileMetadata.getFileName(), inputStream, fileMetadata.getSize(),
                 fileMetadata.getContentType());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FileStorageDownloadUrlResponseDTO shareDownloadUrl(Long id, Long userId) {
+        logger.info("Generating share download URL | fileId={} userId={}", id, userId);
+
+        FileMetadata fileMetadata = validateOwnership(id, userId);
+
+        validateSignedUrlExpiration();
+
+        String objectKey = storageService.buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
+
+        String contentDisposition =  buildContentDispositionHeader(
+                fileMetadata.getFileName(), fileMetadata.getExtension());
+
+        FileShareCacheEntry fileShareCacheEntry = getOrCreateShareUrl(id, objectKey, contentDisposition);
+
+        logger.info("Share download URL generated | fileId={} userId={} expiresAt={}",
+                id, userId, fileShareCacheEntry.expireAt());
+
+        return new FileStorageDownloadUrlResponseDTO(id, fileShareCacheEntry.url(), fileShareCacheEntry.expireAt());
     }
 
     @Override
@@ -155,6 +220,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id, Long userId) {
         logger.info("Start deleting file | fileId={} userId={}", id, userId);
         FileMetadata fileMetadata = validateOwnership(id, userId);
@@ -163,7 +229,7 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         validateTaskStatusForFileOperation(task);
 
-        String objectKey = buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
+        String objectKey = storageService.buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
 
         logger.info("Marking file metadata as PENDING_DELETE | fileId={} objectKey={}",
                 fileMetadata.getId(), objectKey);
@@ -188,8 +254,12 @@ public class FileStorageServiceImpl implements FileStorageService {
         return uuid + "." + extension.toLowerCase();
     }
 
-    private String buildObjectKey(String path, String storedFileName) {
-        return path + storedFileName;
+    private String prepareFileName(String uuid, String originalFileName, String mimeType) {
+        String fileName = buildFileName(originalFileName,  mimeType, uuid);
+
+        String sanitizedFileName = sanitizeFileName(fileName);
+
+        return validateOrGenerateName(sanitizedFileName, mimeType, uuid);
     }
 
     private String buildFileName(String fileName, String mimeType, String uuid) {
@@ -210,7 +280,6 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         // Obtém extensão a partir do MIME (ex: "application/pdf" -> ".pdf")
         String extension = getExtensionFromMimeType(mimeType);
-
         // Caso 2: nome válido fornecido, mas **sem extensão**
         // - adiciona a extensão deduzida do MIME
         if(!trimmedName.isBlank() && !trimmedName.startsWith(".") && currentExtension.isBlank()) {
@@ -222,7 +291,55 @@ public class FileStorageServiceImpl implements FileStorageService {
 
         // Caso 3: nome inválido ou vazio
         // - gera nome padrão usando UUID + extensão do MIME
-        return "unnamed_file_" + uuid  + extension;
+        return buildDefaultFileName(uuid, extension);
+    }
+
+    private String buildDefaultFileName(String uuid, String extension) {
+        return "unnamed_file_" + uuid + extension;
+    }
+
+    private String buildContentDispositionHeader(String originalFileName, String extension) {
+        String encoded = UriUtils.encode(originalFileName, StandardCharsets.UTF_8);
+
+        String dispositionType = (FileExtension.fromExtension(extension).isInline())
+                ? "inline"
+                : "attachment";
+
+        return dispositionType + "; filename=\"" + originalFileName + "\"; filename*=UTF-8''" + encoded;
+    }
+
+    private FileShareCacheEntry getOrCreateShareUrl(long id, String objectKey, String contentDisposition) {
+        FileShareCacheEntry entry = fileShareUrlCache.getShareUrl(id);
+
+        if(entry == null) {
+            logger.debug("Share URL cache miss - generating new signed URL | fileId={}", id);
+            String signedUrl = storageService.generateSignedUrl(objectKey, signedUrlExpiration, contentDisposition);
+            logger.debug("Storing newly generated share URL in cache | fileId={}", id);
+
+            OffsetDateTime expiresAt = OffsetDateTime.now().plus(signedUrlExpiration);
+
+            if("local".equalsIgnoreCase(storageType)) {
+                signedUrl = buildLocalSignedUrl(signedUrl);
+
+                logger.debug("Generated LOCAL share URL | fileId={}", id);
+            }
+
+            entry = new FileShareCacheEntry(signedUrl, expiresAt);
+
+            fileShareUrlCache.storeShareUrl(id, entry);
+        }
+
+        return entry;
+    }
+
+    private String buildLocalSignedUrl(String signedUrl) {
+        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        String storagePath = "files/taskmanager-files/";
+        String relativeFilePathWithQuery = (signedUrl.startsWith("/")) ? signedUrl.substring(1) : signedUrl;
+
+        URI uri = URI.create(normalizedBaseUrl).resolve(storagePath + relativeFilePathWithQuery).normalize();
+
+        return uri.toString();
     }
 
     private String getExtensionFromMimeType(String mimeType) {
@@ -267,7 +384,8 @@ public class FileStorageServiceImpl implements FileStorageService {
         FileMetadata fileMetadata = fileMetadataService.findById(id);
 
         if(!fileMetadata.getTask().getUser().getId().equals(userId)) {
-            logAndThrow(
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
                     "Ownership validation failed | fileId={} userId={}",
                     "You do not have permission to access it",
                     HttpStatus.FORBIDDEN.value(),
@@ -279,7 +397,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void validateFileNameNotBlank(String newFileName) {
         if(newFileName == null || newFileName.isBlank()) {
-            logAndThrow("Invalid rename request. New name is null or blank",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Invalid rename request. New name is null or blank",
                     "Invalid file name: new name cannot be null or blank",
                     HttpStatus.BAD_REQUEST.value());
         }
@@ -317,10 +437,26 @@ public class FileStorageServiceImpl implements FileStorageService {
         // Esta validação garante que o nome contenha pelo menos um caractere significativo
         // (letra ou número), evitando nomes como "_", "...", "---" ou "   ".
         if(newFileName.isBlank() || newFileName.matches("[._\\- ]+")) {
-            logAndThrow("Invalid rename request. New file name contains only invalid characters",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Invalid rename request. New file name contains only invalid characters",
                     "Invalid file name: must contain at least one letter or number",
                     HttpStatus.BAD_REQUEST.value());
         }
+    }
+
+    private String validateOrGenerateName(String fileName, String mimeType, String uuid) {
+        String fileNameWithoutExtension = FilenameUtils.getBaseName(fileName);
+        String extension = getExtensionFromMimeType(mimeType);
+
+        if(fileNameWithoutExtension.isBlank() || fileNameWithoutExtension.matches("[._\\- ]+")) {
+            logger.debug("File name '{}' is invalid after sanitization, generating default name with UUID '{}{}'",
+                    fileNameWithoutExtension, uuid, extension);
+
+            return buildDefaultFileName(uuid, extension);
+        }
+
+        return fileName;
     }
 
     private void validateTaskStatusForFileOperation(Task task) {
@@ -333,19 +469,25 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void validateUploadRequest(MultipartFile file, Long taskId, Long userId) {
         if (file == null) {
-            logAndThrow("Upload failed: file is null | userId={} taskId={}",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Upload failed: file is null | userId={} taskId={}",
                     "File must not be null",
                     HttpStatus.BAD_REQUEST.value(),
                     userId, taskId);
         }
         if (file.isEmpty()) {
-            logAndThrow("Upload failed: file is empty | userId={} taskId={}",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Upload failed: file is empty | userId={} taskId={}",
                     "File must not be empty",
                     HttpStatus.BAD_REQUEST.value(),
                     userId, taskId);
         }
         if (taskId == null || userId == null) {
-            logAndThrow("Upload failed: invalid identifiers | userId={} taskId={}",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Upload failed: invalid identifiers | userId={} taskId={}",
                     "TaskId and userId must not be null",
                     HttpStatus.BAD_REQUEST.value(),
                     userId, taskId);
@@ -366,7 +508,6 @@ public class FileStorageServiceImpl implements FileStorageService {
             // - inputStream: conteúdo do arquivo
             // - file.getOriginalFilename(): nome original do arquivo (ajuda o Tika a deduzir o tipo)
             String mimeType = tika.detect(inputStream, file.getOriginalFilename());
-
             // Se o Tika não conseguir detectar o tipo, usamos um fallback seguro: "application/octet-stream"
             // Esse é o MIME genérico para arquivos binários desconhecidos
             return (mimeType != null) ? mimeType : "application/octet-stream";
@@ -378,7 +519,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void validateAllowedExtension(String extension) {
         if (!FileExtension.isAllowedExtension(extension.toLowerCase()))
-            logAndThrow("Attempt to upload a file with an unauthorized extension: {}",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Attempt to upload a file with an unauthorized extension: {}",
                     "File extension not allowed: " + extension.toLowerCase(),
                     HttpStatus.BAD_REQUEST.value(),
                     extension.toLowerCase());
@@ -408,20 +551,34 @@ public class FileStorageServiceImpl implements FileStorageService {
         // Verifica se a extensão fornecida pelo usuário está entre as extensões válidas para o conteúdo detectado
         // Se não estiver, significa que o arquivo pode ter sido renomeado de forma incorreta ou maliciosa
         if (!validExtensionsForContent.contains(extension.toLowerCase()))
-            logAndThrow("Security Alert: Extension '.{}' does not match real content '{}'",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Security Alert: Extension '.{}' does not match real content '{}'",
                     "File content does not match the provided extension.",
                     HttpStatus.BAD_REQUEST.value(),
                     extension, mimeType);
     }
 
-    private FileStorageResponseDTO handleFileUpload(
-            String sanitizedFileName, String path, String storedFileName, String extension, String mimeType,
-            long size, Task task, InputStream inputStream, String objectKey
-    ) {
-        FileMetadata fileMetadata = persistFileMetadata(sanitizedFileName, path, storedFileName, extension,
-                mimeType, size, task);
+    private void validateSignedUrlExpiration() {
+        if(signedUrlExpiration == null || signedUrlExpiration.isZero() || signedUrlExpiration.isNegative()) {
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Invalid signed URL expiration duration | duration={}",
+                    "Signed URL expiration must be greater than zero",
+                    HttpStatus.BAD_REQUEST.value(),
+                    signedUrlExpiration
+            );
+        }
+    }
 
-        uploadToStorage(mimeType, size, inputStream, objectKey);
+    private FileStorageResponseDTO handleFileUpload(
+            String validFileName, String path, String storedFileName, String extension, String mimeType,
+            Task task, InputStream inputStream, long contentLength, String objectKey
+    ) {
+        FileMetadata fileMetadata = persistFileMetadata(validFileName, path, storedFileName, extension,
+                mimeType, contentLength, task);
+
+        uploadToStorage(mimeType, inputStream, contentLength, objectKey);
 
         reconcileAndActivate(fileMetadata);
 
@@ -429,9 +586,42 @@ public class FileStorageServiceImpl implements FileStorageService {
         return FileStorageMapper.toDTO(fileMetadata);
     }
 
-    private void uploadToStorage(String mimeType, long size, InputStream inputStream, String objectKey) {
-        storageService.upload(inputStream, size, objectKey, mimeType);
-        logger.info("File uploaded to storage | objectKey={}, size={}", objectKey, size);
+    private void uploadToStorage(String mimeType, InputStream inputStream, long contentLength,
+                                 String objectKey) {
+        Path tempFile = null;
+        try {
+            // Cria arquivo temporário com UUID para evitar colisões
+            tempFile = Files.createTempFile("upload_", ".tmp");
+
+            // Copia o conteúdo do InputStream para o arquivo
+            Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+            // Delegação para o storage (S3, Azure, etc.)
+            storageService.upload(tempFile, contentLength, objectKey, mimeType);
+
+            logger.info("File uploaded to storage | objectKey={}", objectKey);
+        } catch (IOException e) {
+            // Erro de I/O ao criar/copiar/deletar arquivo temporário
+            StorageLogger.logAndThrow(
+                    Level.ERROR,
+                    "I/O error while preparing temp file for upload | objectKey={}, mimeType={}",
+                    "Error preparing file for storage upload",
+                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    e,
+                    objectKey, mimeType);
+        }finally {
+            if (tempFile != null) {
+                try {
+                    // Remove o arquivo temporário do disco
+                    // evita vazamento de arquivos no temp
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException e) {
+                    // Não lança exceção aqui para não sobrescrever erro original
+                    // Apenas loga warning
+                    logger.warn("Failed to delete temp file {}", tempFile, e);
+                }
+            }
+        }
     }
 
     private FileMetadata persistFileMetadata(String sanitizedFileName, String path, String storedFileName,
@@ -442,12 +632,14 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void reconcileAndActivate(FileMetadata fileMetadata) {
         if(fileMetadata == null) {
-            logAndThrow("File metadata is null during reconcile",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "File metadata is null during reconcile",
                     "File metadata is null",
                     HttpStatus.BAD_REQUEST.value());
         }
 
-        String objectKey = buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
+        String objectKey = storageService.buildObjectKey(fileMetadata.getPath(), fileMetadata.getStoredFileName());
         boolean exists = storageService.exists(objectKey);
 
         if(!exists) {
@@ -467,7 +659,9 @@ public class FileStorageServiceImpl implements FileStorageService {
         // - maxFileSize: limite máximo definido nas propriedades (ex: 20MB)
         // Se o tamanho for maior que o permitido, lança exceção e interrompe o upload
         if(size > maxFileSize.toBytes())
-            logAndThrow("File size exceeds the maximum allowed limit | size={} bytes, maxAllowed={} bytes",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "File size exceeds the maximum allowed limit | size={} bytes, maxAllowed={} bytes",
                     "File size exceeds limit",
                     HttpStatus.BAD_REQUEST.value(),
                     size, maxFileSize.toBytes());
@@ -475,7 +669,9 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void validateMaxFilesLimit(Long taskId) {
         if(fileMetadataService.hasReachedMaxFiles(taskId))
-            logAndThrow("Maximum number of files reached for this task. | taskId={}",
+            StorageLogger.logAndThrow(
+                    Level.DEBUG,
+                    "Maximum number of files reached for this task. | taskId={}",
                     "Maximum number of files reached for this task.",
                     HttpStatus.BAD_REQUEST.value(),
                     taskId);
@@ -483,13 +679,11 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     private void validateTotalSizeLimit(Long taskId, long size) {
         if(fileMetadataService.hasReachedMaxTotalSize(taskId, size))
-            logAndThrow("Total file size limit exceeded for taskId={} | newFileSize={} bytes",
+           StorageLogger.logAndThrow(
+                   Level.DEBUG,
+                   "Total file size limit exceeded for taskId={} | newFileSize={} bytes",
                     "Total size of files for this task exceeds the maximum allowed limit.",
                     HttpStatus.BAD_REQUEST.value(),
                     taskId, size);
-    }
-
-    private void logAndThrow(String msgLog, String msgThrow, int statusCode, Object... args) {
-        StorageLogger.logAndThrow(Level.DEBUG, msgLog, msgThrow, statusCode, args);
     }
 }

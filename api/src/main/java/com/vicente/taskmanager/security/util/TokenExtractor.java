@@ -1,4 +1,4 @@
-package com.vicente.taskmanager.security;
+package com.vicente.taskmanager.security.util;
 
 import jakarta.servlet.http.HttpServletRequest;
 

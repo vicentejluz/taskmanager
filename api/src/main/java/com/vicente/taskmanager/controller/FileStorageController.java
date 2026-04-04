@@ -4,6 +4,7 @@ import com.vicente.taskmanager.controller.docs.FileStorageControllerDoc;
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.internal.FileDownloadResult;
 import com.vicente.taskmanager.dto.request.FileStorageRenameRequestDTO;
+import com.vicente.taskmanager.dto.response.FileStorageDownloadUrlResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageRenameResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.service.FileStorageService;
@@ -94,6 +95,18 @@ public class FileStorageController implements FileStorageControllerDoc {
                 .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS,
                         HttpHeaders.CONTENT_DISPOSITION)
                 .body(resource);
+    }
+
+    @GetMapping("/files/{fileId}/share-url")
+    public ResponseEntity<FileStorageDownloadUrlResponseDTO> shareUrl(
+            @PathVariable("fileId") Long id,
+            @AuthenticationPrincipal User user
+    ){
+        logger.debug("GET /api/v1/files/{fileId}/share-url shareUrl called | userId={} fileId={}", user.getId(), id);
+        FileStorageDownloadUrlResponseDTO fileStorageDownloadUrlResponseDTO =
+                fileStorageService.shareDownloadUrl(id,  user.getId());
+
+        return ResponseEntity.ok(fileStorageDownloadUrlResponseDTO);
     }
 
     @DeleteMapping("/files/{fileId}/delete")

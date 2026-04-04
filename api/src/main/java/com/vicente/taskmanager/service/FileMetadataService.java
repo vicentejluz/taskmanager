@@ -11,6 +11,7 @@ public interface FileMetadataService {
     String update(Long id, String newFileName);
     void delete(FileMetadata fileMetadata);
     FileMetadata findById(Long id);
+    FileMetadata findByStoredFileName(String storedFileName);
     List<FileMetadata> findAllByTaskId(Long taskId);
     void updateStatusForActive(FileMetadata fileMetadata);
     void updateStatusForDelete(FileMetadata fileMetadata);

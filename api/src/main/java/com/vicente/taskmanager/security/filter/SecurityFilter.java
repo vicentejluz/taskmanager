@@ -1,8 +1,8 @@
 package com.vicente.taskmanager.security.filter;
 
 import com.vicente.taskmanager.domain.entity.User;
-import com.vicente.taskmanager.security.TokenExtractor;
-import com.vicente.taskmanager.security.service.AuthTokenStoreService;
+import com.vicente.taskmanager.security.util.TokenExtractor;
+import com.vicente.taskmanager.cache.AuthTokenStoreService;
 import com.vicente.taskmanager.security.service.TokenService;
 import com.vicente.taskmanager.security.service.UserDetailsServiceImpl;
 import io.jsonwebtoken.Claims;

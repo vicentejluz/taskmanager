@@ -2,6 +2,7 @@ package com.vicente.taskmanager.controller.docs;
 
 import com.vicente.taskmanager.domain.entity.User;
 import com.vicente.taskmanager.dto.request.FileStorageRenameRequestDTO;
+import com.vicente.taskmanager.dto.response.FileStorageDownloadUrlResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageRenameResponseDTO;
 import com.vicente.taskmanager.dto.response.FileStorageResponseDTO;
 import com.vicente.taskmanager.exception.error.StandardError;
@@ -204,6 +205,55 @@ public interface FileStorageControllerDoc {
             )
     })
     ResponseEntity<Resource> download(
+            @Parameter(
+                    description = "Unique identifier of the file",
+                    example = "123",
+                    required = true
+            )
+            Long id,
+            User user
+    );
+
+    @Operation(
+            summary = "Generate a shareable download URL",
+            description = "Generates a temporary signed URL (SAS) for a file stored in Azure Storage. "
+                    + "The user must be the owner of the associated task."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Shareable download URL generated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = FileStorageDownloadUrlResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "User does not have permission to access the file",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "File not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal server error while generating share URL",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = StandardError.class)
+                    )
+            )
+    })
+    ResponseEntity<FileStorageDownloadUrlResponseDTO> shareUrl(
             @Parameter(
                     description = "Unique identifier of the file",
                     example = "123",
