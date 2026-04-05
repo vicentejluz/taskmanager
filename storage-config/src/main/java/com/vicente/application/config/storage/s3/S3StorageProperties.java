@@ -1,4 +1,4 @@
-package com.vicente.storage.config;
+package com.vicente.application.config.storage.s3;
 
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.boot.context.properties.ConfigurationProperties;

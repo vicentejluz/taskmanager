@@ -1,10 +1,10 @@
 package com.vicente.taskmanager.service.impl;
 
+import com.vicente.storage.SecretAwareStorageService;
 import com.vicente.storage.StorageService;
-import com.vicente.storage.security.LocalStorageHmacTokenGenerator;
+import com.vicente.storage.exception.StorageException;
 import com.vicente.taskmanager.domain.entity.FileMetadata;
 import com.vicente.taskmanager.dto.internal.FileDownloadResult;
-import com.vicente.taskmanager.security.util.CryptoHelper;
 import com.vicente.taskmanager.service.FileMetadataService;
 import com.vicente.taskmanager.service.LocalSignedFileService;
 import org.slf4j.Logger;
@@ -13,40 +13,49 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.InputStream;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZoneOffset;
+import java.net.URI;
+import java.time.Duration;
 
 @Service
 @ConditionalOnProperty(name = "app.storage.type", havingValue = "local", matchIfMissing = true)
 public class LocalSignedFileServiceImpl implements LocalSignedFileService {
     private final FileMetadataService fileMetadataService;
     private final StorageService storageService;
+    private final String baseUrl;
     private final String secret;
     private static final Logger logger = LoggerFactory.getLogger(LocalSignedFileServiceImpl.class);
 
     public LocalSignedFileServiceImpl(FileMetadataService fileMetadataService, StorageService storageService,
+                                      @Value("${app.storage.local.base-url:http://localhost:8080/api/v1/}") String baseUrl,
                                       @Value("${app.storage.local.secret-key}") String secret) {
         this.fileMetadataService = fileMetadataService;
         this.storageService = storageService;
+        this.baseUrl = baseUrl;
         this.secret = secret;
     }
 
     @Override
-    public void validateSignedFile(String token, String storageFileName, long expireAt, String contentDisposition) {
-        validateExpiration(storageFileName, expireAt);
+    public String generateSignedUrl(String objectKey, Duration signedUrlExpiration, String contentDisposition) {
+        if(!(storageService instanceof SecretAwareStorageService secretAwareStorageService)) {
+            logger.debug("Current storage does not support signed URL generation | storageClass={}",
+                    storageService.getClass().getSimpleName());
 
-        String data = buildData(storageFileName, expireAt, contentDisposition);
+            throw new StorageException(
+                    "Signed URL generation is not supported for the current storage configuration.",
+                    HttpStatus.INTERNAL_SERVER_ERROR.value());
+        }
 
-        validateHmacToken(token, data, storageFileName);
+        String signedUrl =  secretAwareStorageService.generateSignedUrl(
+                objectKey, signedUrlExpiration, contentDisposition, secret);
+        return buildLocalSignedUrl(signedUrl);
     }
 
     @Override
-    public FileDownloadResult downloadSigned(String storageFileName) {
+    public FileDownloadResult downloadSigned(String token, String storageFileName, long expireAt, String contentDisposition) {
+        validateSignedFile(token, storageFileName, expireAt, contentDisposition);
+
         logger.debug("Download signed file requested | storageFileName={}", storageFileName);
 
         FileMetadata fileMetadata = fileMetadataService.findByStoredFileName(storageFileName);
@@ -65,44 +74,27 @@ public class LocalSignedFileServiceImpl implements LocalSignedFileService {
                 fileMetadata.getContentType());
     }
 
-    private static void validateExpiration(String storageFileName, long expireAt) {
-        Instant now = Instant.now();
-        Instant expireInstant = Instant.ofEpochSecond(expireAt);
+    private String buildLocalSignedUrl(String signedUrl) {
+        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
+        String storagePath = "files/taskmanager-files/";
+        String relativeFilePathWithQuery = (signedUrl.startsWith("/")) ? signedUrl.substring(1) : signedUrl;
 
-        if (!now.isBefore(expireInstant)) {
-            logger.debug("Signed URL expired | now={} | expireAt={}", now, expireInstant);
+        URI uri = URI.create(normalizedBaseUrl).resolve(storagePath + relativeFilePathWithQuery).normalize();
 
-            String reason = String.format("Signed URL expired for file '%s'. Expiration time: %s",
-                    storageFileName, expireInstant.atOffset(ZoneOffset.UTC));
-
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, reason);
-        }
-
-        logger.info("Signed URL expiration valid | now={} | expireAt={}", now, expireInstant);
+        return uri.toString();
     }
 
-    private void validateHmacToken(String token, String data, String storageFileName) {
-        String expectedToken;
-        try {
-            // Gera o HMAC esperado para os dados fornecidos
-            expectedToken = LocalStorageHmacTokenGenerator.generateHmac256(secret, data);
-        }catch (Exception e) {
-            logger.error("Error generating HMAC token", e);
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error generating validation token");
+    private void validateSignedFile(String token, String storageFileName, long expireAt, String contentDisposition) {
+        if(!(storageService instanceof SecretAwareStorageService secretAwareStorageService)) {
+            logger.debug("Signed URL validation not supported by current storage | storageClass={}",
+                    storageService.getClass().getSimpleName());
+
+            throw new StorageException("Signed URL validation is not supported for the current storage configuration.",
+                    HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
 
-        // Compara tokens de forma segura em tempo constante
-        if(!CryptoHelper.safeEquals(expectedToken, token)) {
-            logger.debug("Invalid token provided for signed URL | storageFileName={}", storageFileName);
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid token for signed URL");
-        }
+        logger.debug("Validating signed file | storageFileName={} | expireAt={}", storageFileName, expireAt);
 
-        logger.info("Token validated successfully");
-    }
-
-    private static String buildData(String storageFileName, long expireAt, String contentDisposition) {
-        String encodedContentDisposition = URLEncoder.encode(contentDisposition, StandardCharsets.UTF_8)
-                .replace("+", "%20");
-        return storageFileName + ":" + expireAt + ":" + encodedContentDisposition;
+        secretAwareStorageService.validateSignedUrl(token, storageFileName, expireAt, contentDisposition, secret);
     }
 }

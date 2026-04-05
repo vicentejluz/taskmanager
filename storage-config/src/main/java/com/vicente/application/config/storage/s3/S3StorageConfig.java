@@ -1,9 +1,9 @@
-package com.vicente.storage.config;
+package com.vicente.application.config.storage.s3;
 
 import java.net.URI;
 
+import com.vicente.storage.S3StorageServiceImpl;
 import com.vicente.storage.StorageService;
-import com.vicente.storage.S3StorageService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -114,8 +114,8 @@ public class S3StorageConfig {
     }
 
     @Bean
-    public StorageService s3Storage(S3Client s3Client, S3Presigner s3Presigner, S3StorageProperties s3StorageProperties) {
-        return new S3StorageService(s3Client, s3Presigner, s3StorageProperties.bucketName());
+    public StorageService s3StorageImpl(S3Client s3Client, S3Presigner s3Presigner, S3StorageProperties s3StorageProperties) {
+        return new S3StorageServiceImpl(s3Client, s3Presigner, s3StorageProperties.bucketName());
     }
 
     private AwsCredentials awsBasicCredentials(String accessKey, String secretKey) {

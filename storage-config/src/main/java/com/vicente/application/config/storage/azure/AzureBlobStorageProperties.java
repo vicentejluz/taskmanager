@@ -1,4 +1,4 @@
-package com.vicente.storage.config;
+package com.vicente.application.config.storage.azure;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;

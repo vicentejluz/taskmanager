@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
@@ -55,6 +56,21 @@ public final class LocalStorageHmacTokenGenerator {
 
         // Codifica o resultado do HMAC em Base64URL sem padding, para gerar uma string segura para URLs
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    public static boolean secureCompare(String expectedToken, String token) {
+        if (expectedToken == null || token == null) {
+            return false;
+        }
+
+        try {
+            byte[] digestA = Base64.getUrlDecoder().decode(expectedToken);
+            byte[] digestB = Base64.getUrlDecoder().decode(token);
+
+            return MessageDigest.isEqual(digestA, digestB);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     // Método auxiliar privado que calcula o HMAC de um array de bytes usando a chave e algoritmo especificados

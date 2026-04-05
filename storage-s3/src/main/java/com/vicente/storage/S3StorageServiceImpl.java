@@ -1,6 +1,7 @@
 package com.vicente.storage;
 
 import com.vicente.storage.dto.StorageObject;
+import com.vicente.storage.exception.StorageException;
 import com.vicente.storage.util.StorageLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
-public class S3StorageService implements StorageService {
+public class S3StorageServiceImpl implements StorageService {
     // Cliente S3 que será usado para comunicar com o MinIO/S3
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -29,10 +30,10 @@ public class S3StorageService implements StorageService {
     // Nome do bucket definido no application.properties
     private final String bucketName;
 
-    private static final Logger logger = LoggerFactory.getLogger(S3StorageService.class);
+    private static final Logger logger = LoggerFactory.getLogger(S3StorageServiceImpl.class);
 
     // Injeção de dependência do S3Client configurado no projeto
-    public S3StorageService(S3Client s3Client, S3Presigner s3Presigner, String bucketName) {
+    public S3StorageServiceImpl(S3Client s3Client, S3Presigner s3Presigner, String bucketName) {
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
         this.bucketName = bucketName;
@@ -112,6 +113,23 @@ public class S3StorageService implements StorageService {
         }
     }
 
+    /**
+     * Gera uma URL pré-assinada para um objeto no bucket S3.
+     * <p>
+     * ⚠️ Segurança:
+     * <p>
+     * - A URL pré-assinada permite acesso ao objeto, portanto sempre transmita via HTTPS.
+     * <p>
+     * - A URL expira após o período especificado em {@code duration}.
+     * <p>
+     * - Não compartilhe a URL pré-assinada em canais inseguros.
+     *
+     * @param objectKey the object key (file name) in the S3 bucket
+     * @param duration validity duration of the signed URL
+     * @param contentDisposition file name that will appear when downloading (Content-Disposition)
+     * @return a pre-signed URL allowing temporary access to the object
+     * @throws StorageException if an error occurs while generating the signed URL
+     */
     @Override
     public String generateSignedUrl(String objectKey, Duration duration, String contentDisposition) {
         try {

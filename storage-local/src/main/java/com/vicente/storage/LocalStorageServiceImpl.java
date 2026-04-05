@@ -1,6 +1,7 @@
 package com.vicente.storage;
 
 import com.vicente.storage.dto.StorageObject;
+import com.vicente.storage.exception.SignedUrlValidationException;
 import com.vicente.storage.exception.StorageException;
 import com.vicente.storage.security.LocalStorageHmacTokenGenerator;
 import com.vicente.storage.util.StorageLogger;
@@ -15,20 +16,19 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-public class LocalStorageService implements StorageService {
+public class LocalStorageServiceImpl implements SecretAwareStorageService {
     private final Path rootPath;
-    private final String secret;
-    private static final Logger logger = LoggerFactory.getLogger(LocalStorageService.class);
+    private static final Logger logger = LoggerFactory.getLogger(LocalStorageServiceImpl.class);
 
-    public LocalStorageService(String rootPath, String secret) {
+    public LocalStorageServiceImpl(String rootPath) {
         this.rootPath = Paths.get(rootPath).toAbsolutePath().normalize();
-        this.secret = secret;
         logger.info("LocalStorageService initialized at root path: {}", this.rootPath);
     }
 
@@ -98,8 +98,34 @@ public class LocalStorageService implements StorageService {
         }
     }
 
+    /**
+     * Gera uma URL assinada para o arquivo no LocalStorage.
+     * <p>
+     * ⚠️ Segurança:
+     * <p>
+     * - O token é sensível e garante acesso ao arquivo, portanto sempre transmitir a URL via HTTPS.
+     * <p>
+     * - O token expira de acordo com o parâmetro {@code duration}.
+     * <p>
+     * - Não compartilhe a URL em canais inseguros.
+     *
+     * @param objectKey name of the file in storage
+     * @param duration validity duration of the URL
+     * @param contentDisposition value for Content-Disposition
+     * @param secret secret used to generate the HMAC
+     * @return signed URL containing the token, expiration, and contentDisposition
+     * @throws StorageException if the secret is missing or there are internal HMAC issues
+     */
     @Override
-    public String generateSignedUrl(String objectKey, Duration duration, String contentDisposition) {
+    public String generateSignedUrl(String objectKey, Duration duration, String contentDisposition, String secret) {
+        if (secret == null || secret.isBlank()) {
+            logAndThrow(
+                    "LocalStorageService secret is missing or empty. Cannot generate signed URL.",
+                    "Secret for LocalStorage is not configured. Check your application properties or environment variables.",
+                    500
+            );
+        }
+
         Path path = rootPath.resolve(objectKey).normalize();
 
         ensurePathWithinRoot(path);
@@ -120,8 +146,7 @@ public class LocalStorageService implements StorageService {
 
         String storageFileName = path.getFileName().toString();
 
-        String encodedContentDisposition = URLEncoder.encode(contentDisposition, StandardCharsets.UTF_8)
-                .replace("+", "%20");
+        String encodedContentDisposition = urlEncoder(contentDisposition);
 
         String data = storageFileName + ":" + expireAt + ":" + encodedContentDisposition;
 
@@ -134,6 +159,42 @@ public class LocalStorageService implements StorageService {
                 "?exp=" + expireAt +
                 "&token=" + token +
                 "&rscd=" + encodedContentDisposition;
+    }
+
+    /**
+     * Valida uma URL assinada para um arquivo no LocalStorage.
+     * <p>
+     * ⚠️ Segurança:
+     * <p>
+     * - O token é sensível e garante acesso ao arquivo, portanto sempre transmita via HTTPS.
+     * <p>
+     * - O token não deve estar expirado.
+     * <p>
+     * - Não compartilhe a URL assinada em canais inseguros.
+     *
+     * @param token the HMAC token from the signed URL
+     * @param storageFileName name of the file in storage
+     * @param expireAt expiration time of the URL (epoch seconds)
+     * @param contentDisposition value for Content-Disposition
+     * @param secret secret used to generate the HMAC
+     * @throws SignedUrlValidationException if the token is invalid, expired, or the secret is missing
+     */
+    @Override
+    public void validateSignedUrl(String token, String storageFileName, long expireAt, String contentDisposition, String secret) {
+        if (secret == null || secret.isBlank()) {
+            logger.debug("LocalStorageService secret is missing or empty. Cannot validate signed URL.");
+
+            throw new SignedUrlValidationException(
+                    "Secret for LocalStorage is not configured. Check your application properties or environment variables.",
+                    500
+            );
+        }
+
+        validateExpiration(storageFileName, expireAt);
+
+        String data = buildData(storageFileName, expireAt, contentDisposition);
+
+        validateHmacToken(token, data, storageFileName, secret.trim());
     }
 
     @Override
@@ -318,5 +379,57 @@ public class LocalStorageService implements StorageService {
 
     private void logAndThrow(String msgLog, String msgThrow, Throwable e, Object... args) {
         StorageLogger.logAndThrow(Level.ERROR, msgLog, msgThrow, 500, e, args);
+    }
+
+    private static void validateExpiration(String storageFileName, long expireAt) {
+        if (expireAt <= 0) {
+            throw new SignedUrlValidationException(
+                    "Signed URL expiration timestamp is invalid for file '" + storageFileName + "' | expireAt=" + expireAt,
+                    403
+            );
+        }
+
+        Instant now = Instant.now();
+        Instant expireInstant = Instant.ofEpochSecond(expireAt);
+
+        if (!now.isBefore(expireInstant)) {
+            logger.debug("Signed URL expired | now={} | expireAt={}", now, expireInstant);
+
+            String msg = String.format("Signed URL expired for file '%s'. Expiration time: %s",
+                    storageFileName, expireInstant.atOffset(ZoneOffset.UTC));
+
+            throw new SignedUrlValidationException(msg, 403);
+        }
+
+        logger.info("Signed URL expiration valid | now={} | expireAt={}", now, expireInstant);
+    }
+
+    private String buildData(String storageFileName, long expireAt, String contentDisposition) {
+        String encodedContentDisposition = urlEncoder(contentDisposition);
+        return storageFileName + ":" + expireAt + ":" + encodedContentDisposition;
+    }
+
+    private void validateHmacToken(String token, String data, String storageFileName, String secret) {
+        String expectedToken;
+        try {
+            // Gera o HMAC esperado para os dados fornecidos
+            expectedToken = LocalStorageHmacTokenGenerator.generateHmac256(secret, data);
+        }catch (Exception e) {
+            logger.error("Error generating HMAC token", e);
+            throw new SignedUrlValidationException("Error generating HMAC token for signed URL", 500, e);
+        }
+
+        // Compara tokens de forma segura em tempo constante
+        if(!LocalStorageHmacTokenGenerator.secureCompare(expectedToken, token)) {
+            logger.debug("Invalid token provided for signed URL | storageFileName={}", storageFileName);
+            throw new SignedUrlValidationException("Invalid token for signed URL | file=" + storageFileName, 403);
+        }
+
+        logger.info("Token validated successfully");
+    }
+
+    private String urlEncoder(String contentDisposition) {
+        return URLEncoder.encode(contentDisposition, StandardCharsets.UTF_8)
+                .replace("+", "%20");
     }
 }

@@ -17,6 +17,7 @@ import com.vicente.taskmanager.exception.TaskStatusNotAllowedException;
 import com.vicente.taskmanager.mapper.FileStorageMapper;
 import com.vicente.taskmanager.service.FileMetadataService;
 import com.vicente.taskmanager.service.FileStorageService;
+import com.vicente.taskmanager.service.LocalSignedFileService;
 import com.vicente.taskmanager.service.TaskService;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.tika.Tika;
@@ -38,7 +39,6 @@ import org.springframework.web.util.UriUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,6 +47,7 @@ import java.text.Normalizer;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -54,28 +55,27 @@ public class FileStorageServiceImpl implements FileStorageService {
     private final StorageService storageService;
     private final FileMetadataService fileMetadataService;
     private final TaskService taskService;
+    private final Optional<LocalSignedFileService> localSignedFileService;
     private final FileShareUrlCache fileShareUrlCache;
     private final Tika tika;
     private final DataSize maxFileSize;
     private final Duration signedUrlExpiration;
     private final String storageType;
-    private final String baseUrl;
     private static final TikaConfig TIKA_CONFIG = TikaConfig.getDefaultConfig();
     private static final Logger logger = LoggerFactory.getLogger(FileStorageServiceImpl.class);
 
     public FileStorageServiceImpl(StorageService storageService, FileMetadataService fileMetadataService,
-                                  TaskService taskService, FileShareUrlCache fileShareUrlCache,
-                                  @Value("${file.upload.max-size}") DataSize maxFileSize, @Value("${app.storage.signed-url-expiration}") Duration signedUrlExpiration,
-                                  @Value("${app.storage.type:local}") String storageType,
-                                  @Value("${app.storage.local.base-url:http://localhost:8080/api/v1/}") String baseUrl) {
+                                  TaskService taskService, Optional<LocalSignedFileService> localSignedFileService,
+                                  FileShareUrlCache fileShareUrlCache, @Value("${file.upload.max-size}") DataSize maxFileSize,
+                                  @Value("${app.storage.signed-url-expiration}") Duration signedUrlExpiration, @Value("${app.storage.type:local}") String storageType) {
         this.storageService = storageService;
         this.fileMetadataService = fileMetadataService;
         this.taskService = taskService;
+        this.localSignedFileService = localSignedFileService;
         this.fileShareUrlCache = fileShareUrlCache;
         this.maxFileSize = maxFileSize;
         this.signedUrlExpiration = signedUrlExpiration;
         this.storageType = storageType;
-        this.baseUrl = baseUrl;
         this.tika = new Tika();
     }
 
@@ -311,35 +311,42 @@ public class FileStorageServiceImpl implements FileStorageService {
     private FileShareCacheEntry getOrCreateShareUrl(long id, String objectKey, String contentDisposition) {
         FileShareCacheEntry entry = fileShareUrlCache.getShareUrl(id);
 
-        if(entry == null) {
-            logger.debug("Share URL cache miss - generating new signed URL | fileId={}", id);
-            String signedUrl = storageService.generateSignedUrl(objectKey, signedUrlExpiration, contentDisposition);
-            logger.debug("Storing newly generated share URL in cache | fileId={}", id);
-
-            OffsetDateTime expiresAt = OffsetDateTime.now().plus(signedUrlExpiration);
-
-            if("local".equalsIgnoreCase(storageType)) {
-                signedUrl = buildLocalSignedUrl(signedUrl);
-
-                logger.debug("Generated LOCAL share URL | fileId={}", id);
-            }
-
-            entry = new FileShareCacheEntry(signedUrl, expiresAt);
-
-            fileShareUrlCache.storeShareUrl(id, entry);
+        if(entry != null) {
+            logger.debug("Share URL cache hit | fileId={} | url={} | expiresAt={}",
+                    id, entry.url(), entry.expireAt());
+            return entry;
         }
+
+        String signedUrl = buildStorageSignedUrl(id, objectKey, contentDisposition);
+
+        OffsetDateTime expiresAt = OffsetDateTime.now().plus(signedUrlExpiration);
+
+        entry = new FileShareCacheEntry(signedUrl, expiresAt);
+
+        fileShareUrlCache.storeShareUrl(id, entry);
+
+        logger.debug("Storing share URL in cache | fileId={} | expiresAt={}", id, expiresAt);
 
         return entry;
     }
 
-    private String buildLocalSignedUrl(String signedUrl) {
-        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
-        String storagePath = "files/taskmanager-files/";
-        String relativeFilePathWithQuery = (signedUrl.startsWith("/")) ? signedUrl.substring(1) : signedUrl;
+    private String buildStorageSignedUrl(long id, String objectKey, String contentDisposition) {
+        boolean isLocalStorage = "local".equalsIgnoreCase(storageType);
+        if (isLocalStorage) {
+            String url = localSignedFileService
+                    .map(service ->
+                            service.generateSignedUrl(objectKey, signedUrlExpiration, contentDisposition))
+                    .orElseThrow(() ->
+                            new StorageException("Local storage selected but LocalSignedFileService not available",
+                                    HttpStatus.INTERNAL_SERVER_ERROR.value()));
 
-        URI uri = URI.create(normalizedBaseUrl).resolve(storagePath + relativeFilePathWithQuery).normalize();
+            logger.debug("Generated LOCAL share URL | fileId={}", id);
+            return url;
+        }
 
-        return uri.toString();
+        logger.debug("Share URL cache miss - generating new signed URL | fileId={}", id);
+        return storageService.generateSignedUrl(objectKey, signedUrlExpiration, contentDisposition);
+
     }
 
     private String getExtensionFromMimeType(String mimeType) {

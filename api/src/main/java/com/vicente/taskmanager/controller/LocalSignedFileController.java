@@ -31,12 +31,11 @@ public class LocalSignedFileController implements LocalSignedFileControllerDoc {
             @RequestParam("token") String token,
             @RequestParam("rscd") String contentDisposition
     ){
-        logger.debug("GET /api/v1/files/taskmanager-files/ downloadSigned called | storageFileName={} contentDisposition={}",
-                storageFileName, contentDisposition);
+        logger.debug("GET /api/v1/files/taskmanager-files/{storageFilename} downloadSigned called | " +
+                        "storageFileName={} contentDisposition={}", storageFileName, contentDisposition);
 
-        localSignedFileService.validateSignedFile(token, storageFileName, expireAt, contentDisposition);
-
-        FileDownloadResult fileDownload = localSignedFileService.downloadSigned(storageFileName);
+        FileDownloadResult fileDownload = localSignedFileService.downloadSigned(
+                token, storageFileName, expireAt, contentDisposition);
 
         InputStreamResource resource = new InputStreamResource(fileDownload.inputStream());
 

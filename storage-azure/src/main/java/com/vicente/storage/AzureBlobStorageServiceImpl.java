@@ -23,11 +23,11 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AzureBlobStorageService implements StorageService {
+public class AzureBlobStorageServiceImpl implements StorageService {
     private final BlobContainerClient blobContainerClient;
-    private static final Logger logger = LoggerFactory.getLogger(AzureBlobStorageService.class);
+    private static final Logger logger = LoggerFactory.getLogger(AzureBlobStorageServiceImpl.class);
 
-    public AzureBlobStorageService(BlobContainerClient blobContainerClient) {
+    public AzureBlobStorageServiceImpl(BlobContainerClient blobContainerClient) {
         this.blobContainerClient = blobContainerClient;
         logger.info("AzureBlobStorageService initialized for container: {}", blobContainerClient.getBlobContainerName());
     }
@@ -78,14 +78,21 @@ public class AzureBlobStorageService implements StorageService {
 
 
     /**
-     * Gera uma URL assinada (SAS) para download de um blob no Azure Storage, permitindo que
-     * o arquivo seja baixado com um nome definido pelo usuário (contentDisposition).
+     * Gera uma URL assinada (SAS) para download de um blob no Azure Storage.
+     * <p>
+     * ⚠️ Segurança:
+     * <p>
+     * - A URL assinada concede acesso ao blob, portanto sempre transmita via HTTPS.
+     * <p>
+     * - A URL expira após o período definido em {@code duration}.
+     * <p>
+     * - Não compartilhe a URL assinada em canais inseguros.
      *
-     * @param objectKey The blob name in the container (usually the UUID saved in the database)
-     * @param duration The validity duration of the signed URL
+     * @param objectKey The name of the blob in the container (usually the UUID stored in the database)
+     * @param duration Validity duration of the signed URL
      * @param contentDisposition The file name that will appear when downloading (e.g., "myfile.pdf")
-     * @return Signed URL to download the blob
-     * @throws StorageException Thrown if any error occurs while generating the SAS URL
+     * @return Signed URL for downloading the blob
+     * @throws StorageException If any error occurs while generating the SAS URL
      */
     @Override
     public String generateSignedUrl(String objectKey, Duration duration, String contentDisposition) {

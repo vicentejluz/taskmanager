@@ -36,6 +36,7 @@
 		<module>storage-s3</module>
         <module>storage-azure</module>
         <module>storage-local</module>
+        <module>storage-config</module>
     </modules>
 	<scm>
 		<connection>scm:git:https://github.com/vicentejluz/taskmanager.git</connection>

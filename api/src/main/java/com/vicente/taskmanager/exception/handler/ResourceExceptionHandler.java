@@ -1,5 +1,6 @@
 package com.vicente.taskmanager.exception.handler;
 
+import com.vicente.storage.exception.SignedUrlValidationException;
 import com.vicente.storage.exception.StorageException;
 import com.vicente.taskmanager.exception.*;
 import com.vicente.taskmanager.exception.error.LockedError;
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Duration;
@@ -466,14 +466,14 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).body(err);
     }
 
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<Void> responseStatus(ResponseStatusException e, HttpServletRequest request) {
-        String error = "Response Status Error";
+    @ExceptionHandler(SignedUrlValidationException.class)
+    public ResponseEntity<Void> signedUrlValidation(SignedUrlValidationException e, HttpServletRequest request) {
+        String error = "Signed Url Validation Error";
 
-        logger.warn("{} | status={} method={} path={} message={}", error, e.getStatusCode().value(),
-                request.getMethod(), request.getRequestURI(), e.getReason());
+        logger.warn("{} | status={} method={} path={} message={}", error, e.getStatusCode(),
+                request.getMethod(), request.getRequestURI(), e.getMessage());
 
-        return ResponseEntity.status(e.getStatusCode()).build();
+        return ResponseEntity.status(HttpStatus.valueOf(e.getStatusCode())).build();
     }
 
     @ExceptionHandler(Exception.class)

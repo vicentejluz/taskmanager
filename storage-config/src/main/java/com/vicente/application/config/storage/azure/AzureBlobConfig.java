@@ -1,10 +1,10 @@
-package com.vicente.storage.config;
+package com.vicente.application.config.storage.azure;
 
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.common.StorageSharedKeyCredential;
-import com.vicente.storage.AzureBlobStorageService;
+import com.vicente.storage.AzureBlobStorageServiceImpl;
 import com.vicente.storage.StorageService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -44,7 +44,7 @@ public class AzureBlobConfig {
     }
 
     @Bean
-    public StorageService azureBlobStorage(BlobContainerClient blobContainerClient){
-        return new AzureBlobStorageService(blobContainerClient);
+    public StorageService azureBlobStorageImpl(BlobContainerClient blobContainerClient){
+        return new AzureBlobStorageServiceImpl(blobContainerClient);
     }
 }
